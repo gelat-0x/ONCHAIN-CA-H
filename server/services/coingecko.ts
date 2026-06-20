@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../../shared/constants/apiEndpoints.ts';
 import { COINGECKO_RETRY_DELAY_MS } from '../../shared/constants/cache.ts';
-import type { CoinGeckoPriceRow, ChartRange } from '../../shared/types/index.ts';
+import type { CoinGeckoPriceRow } from '../../shared/types/index.ts';
 import { WATCHLIST_TOKENS, COINGECKO_IDS } from '../../shared/data/tokenCatalog.ts';
 import { fetchJson } from '../lib/http.ts';
 
@@ -40,7 +40,7 @@ export async function fetchCoinGeckoPrices(): Promise<Record<string, CoinGeckoPr
 
 export async function fetchTokenHistory(
   cgId: string,
-  days: ChartRange,
+  days: string,
 ): Promise<{ date: string; price: number; ts: number }[]> {
   const interval = days === '1' || days === '7' ? '' : '&interval=daily';
   const history = await fetchJson<{ prices?: [number, number][] }>(

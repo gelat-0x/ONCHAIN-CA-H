@@ -21,7 +21,7 @@ export function generatePegDeviation(base: number, n = 7): number[] {
 
 export function generateSyntheticHistory(
   price: number,
-  days: '1' | '7' | '30' | '90' | '365',
+  days: string,
   stable: boolean,
 ): { date: string; price: number; ts: number }[] {
   const n = days === '1' ? 24 : days === '7' ? 7 : days === '30' ? 30 : days === '90' ? 90 : 365;
