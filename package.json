@@ -1,0 +1,46 @@
+{
+  "name": "onchain-cash",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:all": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm:server\" \"npm:dev\"",
+    "server": "tsx watch server/index.ts",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "typecheck:server": "tsc -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.node.json --outDir dist-server server/index.ts || echo 'Server build optional'",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "chartjs-plugin-annotation": "^3.1.0",
+    "cors": "^2.8.6",
+    "countup.js": "^2.10.0",
+    "express": "^5.2.1",
+    "react": "^19.2.6",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.18.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^10.0.3",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "tsx": "^4.22.4",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12"
+  }
+}
