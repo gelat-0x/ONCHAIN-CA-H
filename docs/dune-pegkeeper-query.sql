@@ -60,7 +60,6 @@ c.stablecoin,
 t.token_address,
 t.token_symbol,
 
-```
     CASE
         WHEN t."to" = c.pool_address THEN t.amount
         WHEN t."from" = c.pool_address THEN -t.amount
@@ -78,7 +77,6 @@ JOIN constants c
         t."to" = c.pool_address
         OR t."from" = c.pool_address
     )
-```
 
 ),
 
@@ -105,7 +103,6 @@ c.pool_address,
 c.pool_name,
 c.stablecoin,
 
-```
     COALESCE(
         SUM(
             CASE
@@ -135,7 +132,6 @@ GROUP BY
     c.pool_address,
     c.pool_name,
     c.stablecoin
-```
 
 ),
 
