@@ -1,5 +1,5 @@
 /**
- * Complete frxUSD PegKeeper pool registry — 27 pools
+ * Complete frxUSD PegKeeper pool registry — 28 pools
  * Sources: Dune (stablescarab/frax-frxusd-pegkeeper-pools), Frax bi-weekly reports, @Fraxfinance
  * https://dune.com/stablescarab/frax-frxusd-pegkeeper-pools
  */
@@ -73,13 +73,19 @@ export const POOL_REGISTRY: PoolRegistryEntry[] = [
   { id: 'usdf', stablecoin: 'USDf', name: 'frxUSD / USDf', partner: 'Falcon Finance', partnerInitials: 'FF', partnerColor: '#64748b', description: 'Over-collateralized synthetic dollar by DWF Labs', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-USDF'], duneTvlFallback: 1_387, duneFrxUsdTvlFallback: 1_119 , curveUrl: 'https://curve.fi', },
   { id: 'usdifi', stablecoin: 'USDfi', name: 'frxUSD / USDfi', partner: 'USDFI Protocol', partnerInitials: 'UF', partnerColor: '#78716c', description: 'Non-custodial stablecoin backed by protocol revenues', chain: 'Ethereum', since: '2025-03', dlSymbols: ['FRXUSD-USDFI'], duneTvlFallback: 128, duneFrxUsdTvlFallback: 128 , curveUrl: 'https://curve.fi', },
   { id: 'reusd', stablecoin: 'reUSD', name: 'frxUSD / reUSD', partner: 'Re Protocol', partnerInitials: 'RE', partnerColor: '#c084fc', description: 'Principal-protected yield-accruing stablecoin', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-REUSD'], duneTvlFallback: 113, duneFrxUsdTvlFallback: 113 , curveUrl: 'https://curve.fi', },
+
+  // HyperEVM PegKeeper pool: USDP / frxUSD.
+  // Verified via HypurrScan explorer (EVM balance ~447k USD, reported ~438k frxUSD liquidity).
+  // Added using existing `chain` field ('HyperEVM') and `curvePoolAddress`.
+  // Short-term: falls back to dune*Fallback (multi-chain Curve/Dune support pending).
+  { id: 'usdp-hyper', stablecoin: 'USDP', name: 'frxUSD / USDP', partner: 'Parallel', partnerInitials: 'PA', partnerColor: '#a3e635', description: 'USDP/frxUSD PegKeeper pool on HyperEVM', chain: 'HyperEVM', since: '2026-06', dlSymbols: ['FRXUSD-USDP-HYPER'], duneTvlFallback: 447_611, duneFrxUsdTvlFallback: 438_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x0b695b6f4c8ffc910326b0938f83ea448b2ab735', },
 ];
 
 export const DUNE_BASELINE = {
-  totalPoolTvl: 39_312_133,
-  totalFrxUsdInPools: 19_500_000,
-  poolCount: 27,
-  partnerCount: 27,
+  totalPoolTvl: 39_759_744,
+  totalFrxUsdInPools: 19_938_000,
+  poolCount: 28,
+  partnerCount: 28,
   tvlChange30d: 9_941_043,
   tvlChange30dPct: 33.85,
   source: 'Dune — stablescarab/frax-frxusd-pegkeeper-pools',
