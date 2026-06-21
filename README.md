@@ -103,9 +103,8 @@ Full guide: **[docs/API_INTEGRATION.md](./docs/API_INTEGRATION.md)**
 
 | Token | Role |
 |-------|------|
-| **frxUSD** | Stablecoin — pegged to $1 |
+| **frxUSD** | Stablecoin — always equal to $1 |
 | **FRAX** | Ecosystem token — **volatile**, not the stablecoin |
-| **FXS** | Frax governance |
 | AAVE, GHO, CRV, CVX, FXN | Partner ecosystem watchlist |
 
 ---
