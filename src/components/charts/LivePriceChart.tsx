@@ -31,12 +31,13 @@ interface LivePriceChartProps {
 
 export function LivePriceChart({ token, compare }: LivePriceChartProps) {
   const isStable = token.type === 'stablecoin';
-  const labels = token.history.map((h) => h.date);
+  const history = token.history ?? [];
+  const labels = history.map((h) => h.date);
 
   const datasets = [
     {
       label: token.symbol,
-      data: token.history.map((h) => h.price),
+      data: history.map((h) => h.price),
       borderColor: token.color,
       borderWidth: 2,
       pointRadius: 0,
@@ -47,10 +48,11 @@ export function LivePriceChart({ token, compare }: LivePriceChartProps) {
     },
   ];
 
-  if (compare?.history.length) {
+  const compareHistory = compare?.history ?? [];
+  if (compare && compareHistory.length) {
     datasets.push({
       label: compare.symbol,
-      data: compare.history.map((h) => h.price),
+      data: compareHistory.map((h) => h.price),
       borderColor: compare.color,
       borderWidth: 1.5,
       pointRadius: 0,
@@ -61,9 +63,9 @@ export function LivePriceChart({ token, compare }: LivePriceChartProps) {
     });
   }
 
-  const prices = token.history.map((h) => h.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
+  const prices = history.map((h) => h.price);
+  const min = prices.length ? Math.min(...prices) : 0;
+  const max = prices.length ? Math.max(...prices) : 0;
 
   const yMin = isStable ? 0.995 : undefined;
   const yMax = isStable ? 1.005 : undefined;
@@ -90,9 +92,11 @@ export function LivePriceChart({ token, compare }: LivePriceChartProps) {
     },
   };
 
-  const rangeLabel = token.history.length > 1
+  const rangeLabel = history.length > 1
     ? `${formatPrice(min, token.type)} — ${formatPrice(max, token.type)}`
     : '—';
+
+  const change = token.change24h ?? 0;
 
   return (
     <div className="live-chart cult-shadow-deep">
@@ -103,8 +107,8 @@ export function LivePriceChart({ token, compare }: LivePriceChartProps) {
         </div>
         <div className="live-chart__price-block">
           <div className="live-chart__price tabular-nums">{formatPrice(token.price, token.type)}</div>
-          <div className={`live-chart__change tabular-nums ${token.change24h >= 0 ? 'val-green' : 'val-red'}`}>
-            {token.change24h >= 0 ? '+' : ''}{token.change24h.toFixed(2)}% 24h
+          <div className={`live-chart__change tabular-nums ${change >= 0 ? 'val-green' : 'val-red'}`}>
+            {change >= 0 ? '+' : ''}{change.toFixed(2)}% 24h
           </div>
         </div>
       </div>

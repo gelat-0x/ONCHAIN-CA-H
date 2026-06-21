@@ -13,7 +13,8 @@ export function TokenPriceGrid({ tokens, selectedId, onSelect }: TokenPriceGridP
     <div className="token-grid">
       {tokens.map((t) => {
         const active = t.id === selectedId;
-        const spark = t.history.slice(-24).map((h) => h.price);
+        const spark = (t.history ?? []).slice(-24).map((h) => h.price);
+        const change = t.change24h ?? 0;
         return (
           <button
             key={t.id}
@@ -28,8 +29,8 @@ export function TokenPriceGrid({ tokens, selectedId, onSelect }: TokenPriceGridP
               </span>
             </div>
             <div className="token-card__price tabular-nums">{formatPrice(t.price, t.type)}</div>
-            <div className={`token-card__change tabular-nums ${t.change24h >= 0 ? 'val-green' : 'val-red'}`}>
-              {formatChange(t.change24h)}
+            <div className={`token-card__change tabular-nums ${change >= 0 ? 'val-green' : 'val-red'}`}>
+              {formatChange(change)}
             </div>
             {spark.length > 2 && (
               <div className="token-card__spark">
