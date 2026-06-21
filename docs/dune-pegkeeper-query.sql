@@ -142,4 +142,4 @@ LEFT JOIN frxusd_balances fb
     ON fb.pool_address = pl.pool_address
 LEFT JOIN volume_24h v
     ON v.pool_address = pl.pool_address
-ORDER BY total_tvl DESC;
+ORDER BY total_tvl DESC
