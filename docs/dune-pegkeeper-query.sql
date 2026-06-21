@@ -1,121 +1,145 @@
 -- ============================================================
--- ONCHAIN CA$H - Dedicated PegKeeper Pools Query (scheduled)
+-- ONCHAIN CA$H - PegKeeper Dune query reference
 -- Dune Query ID: 7767958
 -- ============================================================
--- Local reference for the saved Dune SQL.
+-- This file mirrors the saved Dune query structure used by the backend.
 --
--- IMPORTANT rollout rule:
--- - This Dune query may support multiple validated rows (currently crvUSD,
---   msUSD, and alUSD), but application rollout remains one pool at a time.
--- - The dashboard only applies Dune data when poolRegistry.ts contains the
---   matching curvePoolAddress. Dune matching is address-only.
--- - At the time this reference was updated, code rollout includes crvUSD and
---   msUSD only. Do NOT add alUSD to poolRegistry.ts until its own PR.
+-- Rollout rules:
+-- - The Dune query can support multiple validated rows.
+-- - App registry rollout remains one pool per PR.
+-- - Current app rollout is crvUSD + msUSD only.
+-- - alUSD is included only in this Dune reference query and must NOT be
+--   added to shared/data/poolRegistry.ts until a separate validation + PR.
 --
 -- SQL notes:
--- - from/to are reserved SQL keywords, so dex.trades references must use
+-- - The query uses stablecoins_evm.transfers.
+-- - from/to are SQL reserved words, so transfer fields must be quoted as
 --   t."from" and t."to".
--- - from_hex() is used for address comparisons because Dune stores addresses
---   as varbinary in these tables.
+-- - Pool matching in the app remains address-only via curvePoolAddress.
 -- ============================================================
 
 WITH
+constants AS (
+    SELECT
+        from_hex('cacd6fd266af91b8aed52accc382b4e165586e29') AS frxusd_token
+),
+
 pool_list AS (
     SELECT *
     FROM (
         VALUES
-            (from_hex('13e12bb0e6a2f1a3d6901a59a9d585e89a6243e1'), 'crvUSD/frxUSD', 'crvUSD'),
-            (from_hex('9a9e2e70919c75d80aaaa1d483c46cdbb8ac4d1b'), 'frxUSD/msUSD', 'msUSD'),
-            (from_hex('17f9682c9cd1a448b31c0428f1d0783ed13a9fa3'), 'alUSD/frxUSD', 'alUSD')
-    ) AS p(pool_address, pool_name_hint, stablecoin_hint)
+            (
+                from_hex('13e12bb0e6a2f1a3d6901a59a9d585e89a6243e1'),
+                'crvUSD/frxUSD',
+                'crvUSD'
+            ),
+            (
+                from_hex('9a9e2e70919c75d80aaaa1d483c46cdbb8ac4d1b'),
+                'frxUSD/msUSD',
+                'msUSD'
+            ),
+            (
+                from_hex('17f9682c9cd1a448b31c0428f1d0783ed13a9fa3'),
+                'alUSD/frxUSD',
+                'alUSD'
+            )
+    ) AS p(pool_address, pool_name, stablecoin)
 ),
 
-frxusd_token AS (
-    SELECT from_hex('cacd6fd266af91b8aed52accc382b4e165586e29') AS token_address
-),
-
--- Latest balance per (pool, token) combination.
-latest_balances AS (
+transfer_deltas AS (
     SELECT
-        pb.pool,
-        pb.token,
-        pb.token_symbol,
-        pb.balance,
-        pb.balance_usd,
-        pb.block_time,
-        ROW_NUMBER() OVER (
-            PARTITION BY pb.pool, pb.token
-            ORDER BY pb.block_time DESC
-        ) AS rn
-    FROM curvefi_ethereum.pool_balances pb
-    WHERE pb.pool IN (SELECT pool_address FROM pool_list)
-      AND pb.block_time >= NOW() - INTERVAL '2' DAY
+        pl.pool_address,
+        pl.pool_name,
+        pl.stablecoin,
+        t.contract_address AS token_address,
+        t.symbol AS token_symbol,
+        t.amount AS token_delta,
+        t.amount_usd AS usd_delta,
+        t.evt_block_time AS block_time
+    FROM stablecoins_evm.transfers t
+    INNER JOIN pool_list pl
+        ON t."to" = pl.pool_address
+    WHERE t.blockchain = 'ethereum'
+
+    UNION ALL
+
+    SELECT
+        pl.pool_address,
+        pl.pool_name,
+        pl.stablecoin,
+        t.contract_address AS token_address,
+        t.symbol AS token_symbol,
+        -t.amount AS token_delta,
+        -t.amount_usd AS usd_delta,
+        t.evt_block_time AS block_time
+    FROM stablecoins_evm.transfers t
+    INNER JOIN pool_list pl
+        ON t."from" = pl.pool_address
+    WHERE t.blockchain = 'ethereum'
 ),
 
 current_balances AS (
-    SELECT *
-    FROM latest_balances
-    WHERE rn = 1
-),
-
-pool_tvl AS (
-    SELECT
-        pool,
-        SUM(balance_usd) AS total_tvl
-    FROM current_balances
-    GROUP BY pool
-),
-
-frxusd_in_pool AS (
-    SELECT
-        pool,
-        SUM(balance_usd) AS frxusd_balance
-    FROM current_balances
-    WHERE token = (SELECT token_address FROM frxusd_token)
-    GROUP BY pool
-),
-
--- 24h Curve volume touching each pool address.
--- t."from" / t."to" must stay quoted because from/to are reserved words.
-volume_24h AS (
-    SELECT
-        pl.pool_address,
-        SUM(t.amount_usd) AS volume_24h
-    FROM pool_list pl
-    LEFT JOIN dex.trades t
-        ON t.blockchain = 'ethereum'
-       AND t.project = 'curve'
-       AND t.block_time >= NOW() - INTERVAL '24' HOUR
-       AND (
-            t."from" = pl.pool_address
-            OR t."to" = pl.pool_address
-            OR t.project_contract_address = pl.pool_address
-       )
-    GROUP BY pl.pool_address
-),
-
-pool_info AS (
     SELECT
         pool_address,
         pool_name,
-        symbol
-    FROM curvefi_ethereum.view_pools
-    WHERE pool_address IN (SELECT pool_address FROM pool_list)
+        stablecoin,
+        token_address,
+        token_symbol,
+        SUM(token_delta) AS token_balance,
+        SUM(usd_delta) AS balance_usd,
+        MAX(block_time) AS last_transfer_time
+    FROM transfer_deltas
+    GROUP BY 1, 2, 3, 4, 5
+    HAVING ABS(SUM(token_delta)) > 0.000001
+),
+
+pool_totals AS (
+    SELECT
+        pool_address,
+        pool_name,
+        stablecoin,
+        SUM(CASE WHEN balance_usd > 0 THEN balance_usd ELSE 0 END) AS total_tvl,
+        MAX(last_transfer_time) AS last_transfer_time
+    FROM current_balances
+    GROUP BY 1, 2, 3
+),
+
+frxusd_balances AS (
+    SELECT
+        cb.pool_address,
+        SUM(CASE WHEN cb.balance_usd > 0 THEN cb.balance_usd ELSE 0 END) AS frxusd_balance
+    FROM current_balances cb
+    CROSS JOIN constants c
+    WHERE cb.token_address = c.frxusd_token
+    GROUP BY 1
+),
+
+volume_24h AS (
+    SELECT
+        pl.pool_address,
+        SUM(ABS(t.amount_usd)) AS volume_24h
+    FROM stablecoins_evm.transfers t
+    INNER JOIN pool_list pl
+        ON t."from" = pl.pool_address
+        OR t."to" = pl.pool_address
+    WHERE t.blockchain = 'ethereum'
+      AND t.evt_block_time >= NOW() - INTERVAL '24' HOUR
+    GROUP BY 1
 )
 
 SELECT
     to_hex(pl.pool_address) AS pool_address,
-    COALESCE(pi.pool_name, pl.pool_name_hint, 'Unknown') AS pool_name,
-    pl.stablecoin_hint AS stablecoin,
+    pl.pool_name,
+    pl.stablecoin,
     COALESCE(pt.total_tvl, 0) AS total_tvl,
-    COALESCE(fip.frxusd_balance, 0) AS frxusd_balance,
+    COALESCE(fb.frxusd_balance, 0) AS frxusd_balance,
     COALESCE(v.volume_24h, 0) AS volume_24h,
-    to_iso8601(NOW()) AS last_updated
-
+    to_iso8601(COALESCE(pt.last_transfer_time, NOW())) AS last_updated
 FROM pool_list pl
-LEFT JOIN pool_tvl pt        ON pt.pool = pl.pool_address
-LEFT JOIN frxusd_in_pool fip ON fip.pool = pl.pool_address
-LEFT JOIN volume_24h v       ON v.pool_address = pl.pool_address
-LEFT JOIN pool_info pi       ON pi.pool_address = pl.pool_address
-
+LEFT JOIN pool_totals pt
+    ON pt.pool_address = pl.pool_address
+LEFT JOIN frxusd_balances fb
+    ON fb.pool_address = pl.pool_address
+LEFT JOIN volume_24h v
+    ON v.pool_address = pl.pool_address
 ORDER BY total_tvl DESC;
