@@ -1,27 +1,42 @@
 -- ============================================================
--- ONCHAIN CA$H - Dedicated PegKeeper Pools Query (Explicit v2)
+-- ONCHAIN CA$H - Dedicated PegKeeper Pools Query (scheduled)
+-- Dune Query ID: 7767958
 -- ============================================================
--- Corrected based on feedback:
--- - Proper partitioning by (pool, token) for latest balances
--- - from_hex() for address comparisons (Dune often stores addresses as varbinary)
--- - split('{{...}}', ',') syntax for parameters
+-- Local reference for the saved Dune SQL.
+--
+-- IMPORTANT rollout rule:
+-- - This Dune query may support multiple validated rows (currently crvUSD,
+--   msUSD, and alUSD), but application rollout remains one pool at a time.
+-- - The dashboard only applies Dune data when poolRegistry.ts contains the
+--   matching curvePoolAddress. Dune matching is address-only.
+-- - At the time this reference was updated, code rollout includes crvUSD and
+--   msUSD only. Do NOT add alUSD to poolRegistry.ts until its own PR.
+--
+-- SQL notes:
+-- - from/to are reserved SQL keywords, so dex.trades references must use
+--   t."from" and t."to".
+-- - from_hex() is used for address comparisons because Dune stores addresses
+--   as varbinary in these tables.
 -- ============================================================
 
-WITH 
+WITH
 pool_list AS (
-    SELECT 
-        from_hex(TRIM(addr)) AS pool_address
-    FROM UNNEST(SPLIT('{{pool_addresses}}', ',')) AS t(addr)
-    WHERE TRIM(addr) <> ''
+    SELECT *
+    FROM (
+        VALUES
+            (from_hex('13e12bb0e6a2f1a3d6901a59a9d585e89a6243e1'), 'crvUSD/frxUSD', 'crvUSD'),
+            (from_hex('9a9e2e70919c75d80aaaa1d483c46cdbb8ac4d1b'), 'frxUSD/msUSD', 'msUSD'),
+            (from_hex('17f9682c9cd1a448b31c0428f1d0783ed13a9fa3'), 'alUSD/frxUSD', 'alUSD')
+    ) AS p(pool_address, pool_name_hint, stablecoin_hint)
 ),
 
 frxusd_token AS (
-    SELECT from_hex('{{frxusd_token}}') AS token_address
+    SELECT from_hex('cacd6fd266af91b8aed52accc382b4e165586e29') AS token_address
 ),
 
--- Get the latest balance per (pool, token) combination
+-- Latest balance per (pool, token) combination.
 latest_balances AS (
-    SELECT 
+    SELECT
         pb.pool,
         pb.token,
         pb.token_symbol,
@@ -29,7 +44,7 @@ latest_balances AS (
         pb.balance_usd,
         pb.block_time,
         ROW_NUMBER() OVER (
-            PARTITION BY pb.pool, pb.token 
+            PARTITION BY pb.pool, pb.token
             ORDER BY pb.block_time DESC
         ) AS rn
     FROM curvefi_ethereum.pool_balances pb
@@ -43,18 +58,16 @@ current_balances AS (
     WHERE rn = 1
 ),
 
--- Total TVL per pool
 pool_tvl AS (
-    SELECT 
+    SELECT
         pool,
         SUM(balance_usd) AS total_tvl
     FROM current_balances
     GROUP BY pool
 ),
 
--- frxUSD specific balance
 frxusd_in_pool AS (
-    SELECT 
+    SELECT
         pool,
         SUM(balance_usd) AS frxusd_balance
     FROM current_balances
@@ -62,22 +75,27 @@ frxusd_in_pool AS (
     GROUP BY pool
 ),
 
--- 24h volume
+-- 24h Curve volume touching each pool address.
+-- t."from" / t."to" must stay quoted because from/to are reserved words.
 volume_24h AS (
-    SELECT 
-        from_hex(pool_address) AS pool_address,
-        SUM(amount_usd) AS volume_24h
-    FROM dex.trades
-    WHERE blockchain = 'ethereum'
-      AND project = 'curve'
-      AND block_time >= NOW() - INTERVAL '24' HOUR
-      AND from_hex(pool_address) IN (SELECT pool_address FROM pool_list)
-    GROUP BY pool_address
+    SELECT
+        pl.pool_address,
+        SUM(t.amount_usd) AS volume_24h
+    FROM pool_list pl
+    LEFT JOIN dex.trades t
+        ON t.blockchain = 'ethereum'
+       AND t.project = 'curve'
+       AND t.block_time >= NOW() - INTERVAL '24' HOUR
+       AND (
+            t."from" = pl.pool_address
+            OR t."to" = pl.pool_address
+            OR t.project_contract_address = pl.pool_address
+       )
+    GROUP BY pl.pool_address
 ),
 
--- Pool metadata
 pool_info AS (
-    SELECT 
+    SELECT
         pool_address,
         pool_name,
         symbol
@@ -85,24 +103,19 @@ pool_info AS (
     WHERE pool_address IN (SELECT pool_address FROM pool_list)
 )
 
-SELECT 
+SELECT
     to_hex(pl.pool_address) AS pool_address,
-    COALESCE(pi.pool_name, 'Unknown') AS pool_name,
-    
-    CASE 
-        WHEN pi.symbol LIKE '%/%' THEN TRIM(SPLIT_PART(pi.symbol, '/', 2))
-        ELSE 'Unknown'
-    END AS stablecoin,
-    
+    COALESCE(pi.pool_name, pl.pool_name_hint, 'Unknown') AS pool_name,
+    pl.stablecoin_hint AS stablecoin,
     COALESCE(pt.total_tvl, 0) AS total_tvl,
     COALESCE(fip.frxusd_balance, 0) AS frxusd_balance,
     COALESCE(v.volume_24h, 0) AS volume_24h,
-    to_iso8601(NOW()) AS last_updated  -- ISO format for reliable Node.js Date parsing (4h staleness check)
+    to_iso8601(NOW()) AS last_updated
 
 FROM pool_list pl
-LEFT JOIN pool_tvl pt         ON pt.pool = pl.pool_address
-LEFT JOIN frxusd_in_pool fip  ON fip.pool = pl.pool_address
-LEFT JOIN volume_24h v        ON v.pool_address = pl.pool_address
-LEFT JOIN pool_info pi        ON pi.pool_address = pl.pool_address
+LEFT JOIN pool_tvl pt        ON pt.pool = pl.pool_address
+LEFT JOIN frxusd_in_pool fip ON fip.pool = pl.pool_address
+LEFT JOIN volume_24h v       ON v.pool_address = pl.pool_address
+LEFT JOIN pool_info pi       ON pi.pool_address = pl.pool_address
 
 ORDER BY total_tvl DESC;
