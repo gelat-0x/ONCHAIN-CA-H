@@ -20,3 +20,4 @@ Production / deployment environments such as Vercel must configure these as envi
 ```env
 DUNE_API_KEY=<secret>
 DUNE_PEGKEEPER_QUERY_ID=7767958
+```
