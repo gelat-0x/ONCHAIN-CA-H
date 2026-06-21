@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createApp } from './app.ts';
 import { envPort } from './config/env.ts';
 import { POOL_REGISTRY } from '../shared/data/poolRegistry.ts';
