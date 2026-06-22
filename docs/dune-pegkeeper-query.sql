@@ -65,7 +65,8 @@ VALUES
 (0x20d4c49a873EaeFf76EfBD0cF19002F6E19EF52c, 'frxUSD/USDaf', 'USDaf', 0x9Cf12ccd6020b6888e4D4C4e4c7AcA33c1eB91f8, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
 (0x16a973F8e466F44e9eA67e7e2d3166bD460ea852, 'frxUSD/AZND', 'AZND', 0x52c66B5E7f8Fde20843De900C5C8B4b0F23708A0, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
 (0x2Cc565dDe7C078A8E477763a34C40e52b13e6396, 'frxUSD/YUSD', 'YUSD', 0x4274cD7277C7bb0806Bd5FE84b9aDAE466a8DA0a, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
-(0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951, 'frxUSD/dUSD', 'dUSD', 0x7CB20517776636eD76b68EdB3D99DCce356ABf02, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29)
+(0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951, 'frxUSD/dUSD', 'dUSD', 0x7CB20517776636eD76b68EdB3D99DCce356ABf02, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
+(0x7ba89bc658c07569cfa6d7947adaa80181a24568, 'frxUSD/USD3', 'USD3', 0x056b269eb1f75477a8666ae8c7fe01b64dd55ecc, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29)
 
 ) AS t (
 pool_address,
@@ -82,7 +83,11 @@ SELECT
     c.pool_name,
     c.stablecoin,
     t.contract_address AS token_address,
-    t.token_symbol,
+    CASE
+        WHEN t.contract_address = c.frxusd_token THEN 'frxUSD'
+        WHEN t.contract_address = c.stablecoin_token THEN c.stablecoin
+        ELSE 'UNKNOWN'
+    END AS token_symbol,
 
     CASE
         WHEN t."to" = c.pool_address THEN t.amount

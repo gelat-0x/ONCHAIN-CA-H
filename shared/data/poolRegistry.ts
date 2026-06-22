@@ -1,5 +1,5 @@
 /**
- * Complete frxUSD PegKeeper pool registry — 28 pools
+ * Complete frxUSD PegKeeper pool registry — 29 pools
  * Sources: Dune (stablescarab/frax-frxusd-pegkeeper-pools), Frax bi-weekly reports, @Fraxfinance
  * https://dune.com/stablescarab/frax-frxusd-pegkeeper-pools
  */
@@ -74,6 +74,9 @@ export const POOL_REGISTRY: PoolRegistryEntry[] = [
   { id: 'usdifi', stablecoin: 'USDfi', name: 'frxUSD / USDfi', partner: 'USDFI Protocol', partnerInitials: 'UF', partnerColor: '#78716c', description: 'Non-custodial stablecoin backed by protocol revenues', chain: 'Ethereum', since: '2025-03', dlSymbols: ['FRXUSD-USDFI'], duneTvlFallback: 128, duneFrxUsdTvlFallback: 128 , curveUrl: 'https://curve.fi', },
   { id: 'reusd', stablecoin: 'reUSD', name: 'frxUSD / reUSD', partner: 'Re Protocol', partnerInitials: 'RE', partnerColor: '#c084fc', description: 'Principal-protected yield-accruing stablecoin', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-REUSD'], duneTvlFallback: 113, duneFrxUsdTvlFallback: 113 , curveUrl: 'https://curve.fi', },
 
+  // USD3 PegKeeper pool from 3Jane (correct/official). Curve pool: 0x7ba89bc658c07569cfa6d7947adaa80181a24568. Stablecoin token (USD3): 0x056b269eb1f75477a8666ae8c7fe01b64dd55ecc. Verified via Curve API (exists on Ethereum, contains frxUSD, TVL ~$1.55m).
+  { id: 'usd3', stablecoin: 'USD3', name: 'frxUSD / USD3', partner: '3Jane', partnerInitials: 'JA', partnerColor: '#eab308', description: 'Stablecoin by 3Jane', chain: 'Ethereum', since: '2026-06', dlSymbols: ['FRXUSD-USD3', 'USD3-FRXUSD'], duneTvlFallback: 1_550_000, duneFrxUsdTvlFallback: 775_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x7ba89bc658c07569cfa6d7947adaa80181a24568', },
+
   // HyperEVM PegKeeper pool: USDP / frxUSD.
   // Verified via HypurrScan explorer (EVM balance ~447k USD, reported ~438k frxUSD liquidity).
   // Added using existing `chain` field ('HyperEVM') and `curvePoolAddress`.
@@ -84,8 +87,8 @@ export const POOL_REGISTRY: PoolRegistryEntry[] = [
 export const DUNE_BASELINE = {
   totalPoolTvl: 39_759_744,
   totalFrxUsdInPools: 19_938_000,
-  poolCount: 28,
-  partnerCount: 28,
+  poolCount: 29,
+  partnerCount: 29,
   tvlChange30d: 9_941_043,
   tvlChange30dPct: 33.85,
   source: 'Dune — stablescarab/frax-frxusd-pegkeeper-pools',
