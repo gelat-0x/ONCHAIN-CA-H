@@ -3,11 +3,17 @@
  *
  * PRIMARY live data source for frxUSD PegKeeper pools.
  *
- * Endpoints used:
- * - /getPools/all/ethereum   (preferred - covers all registries)
- * - /getVolumes/ethereum     (official volume data)
+ * Multi-chain support (incremental, starting with HyperEVM):
+ * - fetchCurvePools(chain?) and fetchCurveVolumes(chain?) accept optional chain from registry.
+ * - CURVE_CHAIN_SLUGS maps registry 'chain' -> Curve API blockchainId.
+ *   'HyperEVM' -> 'hyperliquid' (verified; contains the usdp-hyper pool at 0x0b69...).
+ * - Existing Ethereum calls (no arg) remain unchanged.
+ * - Data from multiple chains is fetched in parallel and flattened in the builder.
+ * - Matching is strictly by curvePoolAddress (address-based, works cross-chain).
  *
- * Matching is strictly by curvePoolAddress from poolRegistry.
+ * Endpoints used:
+ * - /getPools/all/{slug}
+ * - /getVolumes/{slug}
  */
 
 import { fetchJson } from '../lib/http.ts';
@@ -17,7 +23,7 @@ export interface CurvePoolData {
   address: string;
   tvlUsd?: number;
   apy?: number;
-  // Raw for debugging
+  // Raw for debugging and potential per-coin balance extraction (e.g. frxUSD on non-Eth)
   raw?: any;
 }
 
@@ -31,13 +37,27 @@ export interface CurveVolumeData {
 const CURVE_API = 'https://api.curve.fi/v1';
 
 /**
- * Fetch all pools from Curve's unified endpoint.
- * This is preferred over individual registries because PegKeeper pools
- * may live in different factories/registries.
+ * Mapping from our registry.chain values to Curve API blockchainId slugs.
+ * 
+ * Verified working slugs:
+ * - HyperEVM: 'hyperliquid' (API returns our exact pool: address 0x0B695b6F4c8ffc910326B0938F83Ea448B2aB735, name USDp/frxUSD)
  */
-export async function fetchCurvePools(): Promise<CurvePoolData[]> {
+const CURVE_CHAIN_SLUGS: Record<string, string> = {
+  'Ethereum': 'ethereum',
+  'HyperEVM': 'hyperliquid',
+  // Add future chains here as Curve support expands or we verify:
+  // 'Fraxtal': 'fraxtal',
+  // 'Sonic': 'sonic',
+  // 'Base': 'base',
+  // 'Arbitrum': 'arbitrum',
+};
+
+/**
+ * Internal helper: fetch pools for a Curve slug.
+ */
+async function fetchCurvePoolsForSlug(slug: string): Promise<CurvePoolData[]> {
   try {
-    const url = `${CURVE_API}/getPools/all/ethereum`;
+    const url = `${CURVE_API}/getPools/all/${slug}`;
     const res = await fetchJson<any>(url, { timeout: 20_000 });
 
     // Curve responses are often { success: true, data: { poolData: [...] } }
@@ -56,43 +76,50 @@ export async function fetchCurvePools(): Promise<CurvePoolData[]> {
       };
     }).filter(p => p.address);
   } catch (err) {
-    console.warn('[Curve] Failed to fetch /getPools/all/ethereum:', err);
+    console.warn(`[Curve] Failed to fetch /getPools/all/${slug}:`, err);
     return [];
   }
 }
 
 /**
- * Fetch 24h volumes from official Curve endpoint.
+ * Fetch all pools from Curve's unified endpoint.
+ * 
+ * @param chain - registry chain name (e.g. 'Ethereum', 'HyperEVM'). Defaults to Ethereum.
  */
-export async function fetchCurveVolumes(): Promise<CurveVolumeData[]> {
+export async function fetchCurvePools(chain: string = 'Ethereum'): Promise<CurvePoolData[]> {
+  const slug = CURVE_CHAIN_SLUGS[chain] || 'ethereum';
+  return fetchCurvePoolsForSlug(slug);
+}
+
+/**
+ * Internal helper: fetch volumes for a Curve slug.
+ *
+ * Updated to correctly handle the response format used by both ethereum and hyperliquid:
+ *   { success: true, data: { pools: [{ address, volumeUSD: number, ... }], ... } }
+ * 
+ * The previous generic parser only partially worked for hyperliquid (returning very few entries).
+ */
+async function fetchCurveVolumesForSlug(slug: string): Promise<CurveVolumeData[]> {
   try {
-    const url = `${CURVE_API}/getVolumes/ethereum`;
+    const url = `${CURVE_API}/getVolumes/${slug}`;
     const res = await fetchJson<any>(url, { timeout: 20_000 });
 
-    // Volumes are often under data or directly an array
-    const volData = res?.data ?? res?.volumes ?? res ?? [];
+    // Curve volumes response structure (observed on both ethereum and hyperliquid):
+    // { success: true, data: { pools: [ { address, volumeUSD: number, ... } ], ... } }
+    // We prioritize data.pools for multi-chain compatibility.
+    const raw = res?.data?.pools ?? res?.data ?? res?.volumes ?? res ?? [];
+    const volData = Array.isArray(raw) ? raw : [];
 
     const volumes: CurveVolumeData[] = [];
 
-    // Curve volumes can be an object keyed by address or an array
-    if (Array.isArray(volData)) {
-      for (const v of volData) {
-        const addr = (v.address || v.pool || v.pool_address || '').toLowerCase();
-        const vol = v.volumeUSD ?? v.volumeUsd ?? v.volume ?? v.volume_usd ?? v.usdVolume;
-        if (addr) {
-          volumes.push({
-            address: addr,
-            volumeUsd24h: vol ? Number(vol) : undefined,
-            raw: v,
-          });
-        }
-      }
-    } else if (typeof volData === 'object') {
-      for (const [addr, v] of Object.entries(volData)) {
-        const vol = (v as any)?.volumeUSD ?? (v as any)?.volumeUsd ?? (v as any)?.volume;
+    for (const v of volData) {
+      const addr = (v.address || v.pool || v.pool_address || '').toLowerCase();
+      // volumeUSD is the field used by Curve for 24h volume on hyperliquid and ethereum
+      const vol = v.volumeUSD ?? v.volumeUsd ?? v.volume ?? v.volume_usd ?? v.usdVolume ?? (v as any)?.volumeUSD;
+      if (addr) {
         volumes.push({
-          address: addr.toLowerCase(),
-          volumeUsd24h: vol ? Number(vol) : undefined,
+          address: addr,
+          volumeUsd24h: vol != null ? Number(vol) : undefined,
           raw: v,
         });
       }
@@ -100,14 +127,26 @@ export async function fetchCurveVolumes(): Promise<CurveVolumeData[]> {
 
     return volumes;
   } catch (err) {
-    console.warn('[Curve] Failed to fetch /getVolumes/ethereum:', err);
+    console.warn(`[Curve] Failed to fetch /getVolumes/${slug}:`, err);
     return [];
   }
 }
 
 /**
+ * Fetch 24h volumes from official Curve endpoint.
+ * 
+ * @param chain - registry chain name. Defaults to Ethereum.
+ */
+export async function fetchCurveVolumes(chain: string = 'Ethereum'): Promise<CurveVolumeData[]> {
+  const slug = CURVE_CHAIN_SLUGS[chain] || 'ethereum';
+  return fetchCurveVolumesForSlug(slug);
+}
+
+/**
  * Match a pool by curvePoolAddress (exact).
  * Returns the pool data if found.
+ * 
+ * Note: Now works for any chain because dashboard fetches per-chain data and flattens.
  */
 export function matchCurvePool(
   curvePools: CurvePoolData[],
@@ -132,4 +171,3 @@ export function matchCurveVolume(
   const target = entry.curvePoolAddress.toLowerCase();
   return curveVolumes.find(v => v.address === target) ?? null;
 }
-
