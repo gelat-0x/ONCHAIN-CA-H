@@ -88,6 +88,7 @@ SELECT
         WHEN t.contract_address = c.stablecoin_token THEN c.stablecoin
         ELSE 'UNKNOWN'
     END AS token_symbol,
+
     CASE
         WHEN t."to" = c.pool_address THEN t.amount
         WHEN t."from" = c.pool_address THEN -t.amount
