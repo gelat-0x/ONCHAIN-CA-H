@@ -70,17 +70,33 @@ export const POOL_REGISTRY: PoolRegistryEntry[] = [
   { id: 'usdp', stablecoin: 'USDp', name: 'frxUSD / USDp', partner: 'Parallel', partnerInitials: 'PA', partnerColor: '#a3e635', description: 'Overcollateralized stablecoin by Parallel', chain: 'Ethereum', since: '2026-03', dlSymbols: ['FRXUSD-USDP'], duneTvlFallback: 4_068, duneFrxUsdTvlFallback: 1_604 , curveUrl: 'https://curve.fi', },
   // dUSD PegKeeper pool from dTRINITY (correct/official). Curve pool: 0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951. Stablecoin token (sdUSD): 0x7CB20517776636eD76b68EdB3D99DCce356ABf02. Validated via Curve API.
   { id: 'dusd', stablecoin: 'dUSD', name: 'frxUSD / dUSD', partner: 'dTRINITY', partnerInitials: 'DT', partnerColor: '#00ff88', description: 'Subsidized-borrowing stablecoin backed by yield reserves', chain: 'Ethereum', since: '2025-09', dlSymbols: ['FRXUSD-DUSD', 'DUSD-FRXUSD'], duneTvlFallback: 275, duneFrxUsdTvlFallback: 229 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951', },
-  { id: 'usdf', stablecoin: 'USDf', name: 'frxUSD / USDf', partner: 'Falcon Finance', partnerInitials: 'FF', partnerColor: '#64748b', description: 'Over-collateralized synthetic dollar by DWF Labs', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-USDF'], duneTvlFallback: 1_387, duneFrxUsdTvlFallback: 1_119 , curveUrl: 'https://curve.fi', },
-  { id: 'usdifi', stablecoin: 'USDfi', name: 'frxUSD / USDfi', partner: 'USDFI Protocol', partnerInitials: 'UF', partnerColor: '#78716c', description: 'Non-custodial stablecoin backed by protocol revenues', chain: 'Ethereum', since: '2025-03', dlSymbols: ['FRXUSD-USDFI'], duneTvlFallback: 128, duneFrxUsdTvlFallback: 128 , curveUrl: 'https://curve.fi', },
-  { id: 'reusd', stablecoin: 'reUSD', name: 'frxUSD / reUSD', partner: 'Re Protocol', partnerInitials: 'RE', partnerColor: '#c084fc', description: 'Principal-protected yield-accruing stablecoin', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-REUSD'], duneTvlFallback: 113, duneFrxUsdTvlFallback: 113 , curveUrl: 'https://curve.fi', },
+  // usdf PegKeeper pool from Falcon Finance (correct/official). 
+  // Curve pool address: 0x98e9599dab3a936c35de48e13e026ef4ea20b5e6 (factory-stable-ng-485).
+  // Stablecoin token: 0xFa2B947eEc368f42195f24F36d2aF29f7c24CeC2.
+  // Validated via Curve API. Direct frxUSD pair.
+  // NOTE: Do not confuse with sUSDf address 0xc8CF6D7991f15525488b2A83Df53468D682Ba4B0.
+  { id: 'usdf', stablecoin: 'USDf', name: 'frxUSD / USDf', partner: 'Falcon Finance', partnerInitials: 'FF', partnerColor: '#64748b', description: 'Over-collateralized synthetic dollar by DWF Labs', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-USDF'], duneTvlFallback: 1_387, duneFrxUsdTvlFallback: 1_119 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x98e9599dab3a936c35de48e13e026ef4ea20b5e6', },
+  // usdifi PegKeeper pool from USDFI Protocol.
+  // Curve pool address: 0x2efc11c7bb2e0fbdba8a05a3712398860e6a8e53 (factory-stable-ng-527).
+  // Stablecoin token: 0xa0ED3359902EfF692e5b8167038133a73D641909.
+  // Validated via Curve API. Direct frxUSD pair.
+  { id: 'usdifi', stablecoin: 'USDfi', name: 'frxUSD / USDfi', partner: 'USDFI Protocol', partnerInitials: 'UF', partnerColor: '#78716c', description: 'Non-custodial stablecoin backed by protocol revenues', chain: 'Ethereum', since: '2025-03', dlSymbols: ['FRXUSD-USDFI'], duneTvlFallback: 128, duneFrxUsdTvlFallback: 128 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x2efc11c7bb2e0fbdba8a05a3712398860e6a8e53', },
+  // reusd PegKeeper pool from Re Protocol (direct frxUSD pair, confirmed).
+  // Curve pool address: 0x421194e547eb49304b3e99ffd26b164f9832d395.
+  // Stablecoin token: 0x5086bf358635B81D8C47C66d1C8b9E567Db70c72.
+  // Validated via Curve API.
+  // NOTE: This pool appears inactive / near-zero liquidity. frxusd_balance in Dune may be 0 or very low because the pool is dormant.
+  // Do NOT use the sfrxUSD pair address 0xed785Af60bEd688baa8990cD5c4166221599A441.
+  { id: 'reusd', stablecoin: 'reUSD', name: 'frxUSD / reUSD', partner: 'Re Protocol', partnerInitials: 'RE', partnerColor: '#c084fc', description: 'Principal-protected yield-accruing stablecoin', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-REUSD'], duneTvlFallback: 113, duneFrxUsdTvlFallback: 113 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x421194e547eb49304b3e99ffd26b164f9832d395', },
 
   // USD3 PegKeeper pool from 3Jane (correct/official). Curve pool: 0x7ba89bc658c07569cfa6d7947adaa80181a24568. Stablecoin token (USD3): 0x056b269eb1f75477a8666ae8c7fe01b64dd55ecc. Verified via Curve API (exists on Ethereum, contains frxUSD, TVL ~$1.55m).
   { id: 'usd3', stablecoin: 'USD3', name: 'frxUSD / USD3', partner: '3Jane', partnerInitials: 'JA', partnerColor: '#eab308', description: 'Stablecoin by 3Jane', chain: 'Ethereum', since: '2026-06', dlSymbols: ['FRXUSD-USD3', 'USD3-FRXUSD'], duneTvlFallback: 1_550_000, duneFrxUsdTvlFallback: 775_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x7ba89bc658c07569cfa6d7947adaa80181a24568', },
 
-  // HyperEVM PegKeeper pool: USDP / frxUSD.
+  // HyperEVM PegKeeper pool: USDP / frxUSD (Parallel).
+  // Curve pool address: 0x0b695b6f4c8ffc910326b0938f83ea448b2ab735.
   // Verified via HypurrScan explorer (EVM balance ~447k USD, reported ~438k frxUSD liquidity).
-  // Added using existing `chain` field ('HyperEVM') and `curvePoolAddress`.
-  // Short-term: falls back to dune*Fallback (multi-chain Curve/Dune support pending).
+  // NOTE: This pool is on HyperEVM (not Ethereum mainnet). It cannot be included in the main Dune query (which uses tokens_ethereum.transfers and Ethereum chain filters).
+  // Short-term: falls back to dune*Fallback values. Multi-chain Curve/Dune support pending.
   { id: 'usdp-hyper', stablecoin: 'USDP', name: 'frxUSD / USDP', partner: 'Parallel', partnerInitials: 'PA', partnerColor: '#a3e635', description: 'USDP/frxUSD PegKeeper pool on HyperEVM', chain: 'HyperEVM', since: '2026-06', dlSymbols: ['FRXUSD-USDP-HYPER'], duneTvlFallback: 447_611, duneFrxUsdTvlFallback: 438_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x0b695b6f4c8ffc910326b0938f83ea448b2ab735', },
 ];
 
