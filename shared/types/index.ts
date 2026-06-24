@@ -151,3 +151,9 @@ export interface DunePegKeeperResult {
   isStale: boolean;
   source: 'dune';
 }
+
+/**
+ * Re-export lifecycle and BD prospect types (framework only - PR A)
+ * These live in a dedicated file for clarity.
+ */
+export * from './poolLifecycle';

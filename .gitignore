@@ -22,3 +22,9 @@ Thumbs.db
 
 # Other
 *.tsbuildinfo
+
+# Pool lifecycle generated outputs (framework policy)
+data/generated/
+docs/pool-analytics/RANKING.md
+docs/pool-analytics/*-report.md
+*.lifecycle.json
