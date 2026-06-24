@@ -121,4 +121,4 @@ See DESIGN.md for full rules. Key categories: healthy, active, incentive-driven,
 
 ## Mock Scoring Example
 
-See the dry-run output from `npm run generate:lifecycle` (or equivalent) for illustrative numbers only. All real scoring will use verified data sources.
+See the dry-run output from `npx tsx scripts/generate-pool-lifecycle.ts` (or equivalent) for illustrative numbers only. All real scoring will use verified data sources.
