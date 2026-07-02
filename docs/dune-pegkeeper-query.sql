@@ -66,8 +66,17 @@ VALUES
 (0x16a973F8e466F44e9eA67e7e2d3166bD460ea852, 'frxUSD/AZND', 'AZND', 0x52c66B5E7f8Fde20843De900C5C8B4b0F23708A0, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
 (0x2Cc565dDe7C078A8E477763a34C40e52b13e6396, 'frxUSD/YUSD', 'YUSD', 0x4274cD7277C7bb0806Bd5FE84b9aDAE466a8DA0a, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
 (0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951, 'frxUSD/dUSD', 'dUSD', 0x7CB20517776636eD76b68EdB3D99DCce356ABf02, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
-(0x7ba89bc658c07569cfa6d7947adaa80181a24568, 'frxUSD/USD3', 'USD3', 0x056b269eb1f75477a8666ae8c7fe01b64dd55ecc, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29)
+(0x7ba89bc658c07569cfa6d7947adaa80181a24568, 'frxUSD/USD3', 'USD3', 0x056b269eb1f75477a8666ae8c7fe01b64dd55ecc, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
 
+-- Confirmed direct frxUSD PegKeeper pools (addresses validated; added to constants BEFORE editing poolRegistry.ts per instructions)
+-- usdf: curvePoolAddress 0x98e9599dab3a936c35de48e13e026ef4ea20b5e6; pair frxUSD/USDf; factory-stable-ng-485; stablecoin token 0xFa2B947eEc368f42195f24F36d2aF29f7c24CeC2
+-- NOTE: do not use 0xc8CF6D7991f15525488b2A83Df53468D682Ba4B0 (sUSDf)
+(0x98e9599dab3a936c35de48e13e026ef4ea20b5e6, 'frxUSD/USDf', 'USDf', 0xFa2B947eEc368f42195f24F36d2aF29f7c24CeC2, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
+-- usdifi: curvePoolAddress 0x2efc11c7bb2e0fbdba8a05a3712398860e6a8e53; pair USDFI/frxUSD; factory-stable-ng-527; stablecoin token 0xa0ED3359902EfF692e5b8167038133a73D641909
+(0x2efc11c7bb2e0fbdba8a05a3712398860e6a8e53, 'USDFI/frxUSD', 'USDfi', 0xa0ED3359902EfF692e5b8167038133a73D641909, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29),
+-- reusd: curvePoolAddress 0x421194e547eb49304b3e99ffd26b164f9832d395; pair reUSD/frxUSD; stablecoin token 0x5086bf358635B81D8C47C66d1C8b9E567Db70c72
+-- IMPORTANT: this pool appears inactive / near-zero liquidity (frxusd_balance may be 0 or very low). Report clearly. Do NOT assign 0xed785Af60bEd688baa8990cD5c4166221599A441 (reUSD/sfrxUSD)
+(0x421194e547eb49304b3e99ffd26b164f9832d395, 'reUSD/frxUSD', 'reUSD', 0x5086bf358635B81D8C47C66d1C8b9E567Db70c72, 0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29)
 ) AS t (
 pool_address,
 pool_name,
@@ -132,17 +141,7 @@ SELECT
     c.pool_name,
     c.stablecoin,
 
-    COALESCE(
-        SUM(
-            CASE
-                WHEN b.token_address IN (c.frxusd_token, c.stablecoin_token)
-                THEN b.balance
-                ELSE 0
-            END
-        ),
-        0
-    ) AS total_tvl,
-
+    -- frxUSD net balance in the pool contract (from transfers to/from the pool)
     COALESCE(
         SUM(
             CASE
@@ -152,7 +151,40 @@ SELECT
             END
         ),
         0
-    ) AS frxusd_balance
+    ) AS frxusd_balance,
+
+    -- Stablecoin net balance in the pool contract
+    COALESCE(
+        SUM(
+            CASE
+                WHEN b.token_address = c.stablecoin_token
+                THEN b.balance
+                ELSE 0
+            END
+        ),
+        0
+    ) AS stable_balance,
+
+    -- total_tvl = real sum of both tokens held in the pool (frxUSD + stable)
+    COALESCE(
+        SUM(
+            CASE
+                WHEN b.token_address = c.frxusd_token
+                THEN b.balance
+                ELSE 0
+            END
+        ),
+        0
+    ) + COALESCE(
+        SUM(
+            CASE
+                WHEN b.token_address = c.stablecoin_token
+                THEN b.balance
+                ELSE 0
+            END
+        ),
+        0
+    ) AS total_tvl
 
 FROM constants c
 LEFT JOIN balances b
