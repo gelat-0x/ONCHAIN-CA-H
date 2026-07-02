@@ -1,5 +1,5 @@
 /**
- * Complete frxUSD PegKeeper pool registry — 29 pools
+ * Complete frxUSD PegKeeper pool registry — 30 pools
  * Sources: Dune (stablescarab/frax-frxusd-pegkeeper-pools), Frax bi-weekly reports, @Fraxfinance
  * https://dune.com/stablescarab/frax-frxusd-pegkeeper-pools
  */
@@ -98,12 +98,17 @@ export const POOL_REGISTRY: PoolRegistryEntry[] = [
   // NOTE: This pool is on HyperEVM (not Ethereum mainnet). It cannot be included in the main Dune query (which uses tokens_ethereum.transfers and Ethereum chain filters).
   // Short-term: falls back to dune*Fallback values. Multi-chain Curve/Dune support pending.
   { id: 'usdp-hyper', stablecoin: 'USDP', name: 'frxUSD / USDP', partner: 'Parallel', partnerInitials: 'PA', partnerColor: '#a3e635', description: 'USDP/frxUSD PegKeeper pool on HyperEVM', chain: 'HyperEVM', since: '2026-06', dlSymbols: ['FRXUSD-USDP-HYPER'], duneTvlFallback: 447_611, duneFrxUsdTvlFallback: 438_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x0b695b6f4c8ffc910326b0938f83ea448b2ab735', },
+  // VUSD PegKeeper pool from Vetro (correct/official).
+  // Curve pool address: 0x766752eFbE71Ba7897B205B53EfBd34EC85CA0Cf.
+  // Stablecoin token: 0xCa83DDE9c22254f58e771bE5E157773212AcBAc3.
+  // Validated via Curve API. Direct frxUSD pair.
+  { id: 'vusd', stablecoin: 'VUSD', name: 'frxUSD / VUSD', partner: 'Vetro', partnerInitials: 'VE', partnerColor: '#0ea5e9', description: 'Treasury layer stablecoin for institutional treasuries', chain: 'Ethereum', since: '2026-06', dlSymbols: ['FRXUSD-VUSD', 'VUSD-FRXUSD'], duneTvlFallback: 50_000, duneFrxUsdTvlFallback: 25_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x766752eFbE71Ba7897B205B53EfBd34EC85CA0Cf', },
 ];
 
 export const DUNE_BASELINE = {
   totalPoolTvl: 39_759_744,
   totalFrxUsdInPools: 19_938_000,
-  poolCount: 29,
+  poolCount: 30,
   partnerCount: 29,
   tvlChange30d: 9_941_043,
   tvlChange30dPct: 33.85,
