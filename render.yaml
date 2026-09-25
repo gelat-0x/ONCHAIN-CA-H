@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: onchain-cash
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DUNE_API_KEY
+        sync: false
+      - key: DUNE_PEGKEEPER_QUERY_ID
+        value: 7767958

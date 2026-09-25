@@ -10,6 +10,15 @@ export const API_ENDPOINTS = {
   defiLlama: {
     yields: 'https://yields.llama.fi/pools',
     stablecoins: 'https://stablecoins.llama.fi/stablecoins',
+    stablecoinChart: (id: string) =>
+      `https://stablecoins.llama.fi/stablecoincharts/all?stablecoin=${id}`,
+    stablecoinDetail: (id: string) => `https://stablecoins.llama.fi/stablecoin/${id}`,
+    protocol: (slug: string) => `https://api.llama.fi/protocol/${slug}`,
+    protocolTvl: (slug: string) => `https://api.llama.fi/tvl/${slug}`,
+    feesSummary: (slug: string, dataType = 'dailyFees') =>
+      `https://api.llama.fi/summary/fees/${slug}?dataType=${dataType}`,
+    dexVolumeSummary: (slug: string, dataType = 'dailyVolume') =>
+      `https://api.llama.fi/summary/dexs/${slug}?dataType=${dataType}`,
   },
 
   /** CoinGecko — token prices & chart history (free tier: 30 req/min) */
@@ -37,6 +46,17 @@ export const API_ENDPOINTS = {
   dune: {
     base: 'https://api.dune.com/api/v1',
     pegkeeperQueryId: '7767958', // ← Paste your scheduled query ID here
+  },
+
+  /**
+   * Stake DAO — Curve gauge strategies v2 (boosted APY for LP stakers).
+   * Payload includes `coins`, `gaugeAddress`, `maxApr`, `apr.current`,
+   * `onlyboost` (Convex routing), and `sidecarPool.id` for Convex stake URLs.
+   * https://github.com/stake-dao/api
+   */
+  stakeDao: {
+    curveStrategies: (chainId = 1) =>
+      `https://api.stakedao.org/api/strategies/v2/curve/${chainId}.json`,
   },
 } as const;
 

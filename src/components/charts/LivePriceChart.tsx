@@ -1,126 +1,70 @@
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import annotationPlugin from 'chartjs-plugin-annotation';
-import { Line } from 'react-chartjs-2';
 import type { TokenMarketData } from '../../types';
-import { baseChartOptions, formatPrice } from './chartTheme';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Tooltip,
-  Legend,
-  annotationPlugin,
-);
+import { formatPrice } from './chartTheme';
+import { SimpleBarChart } from './SimpleBarChart';
+import { chartBarTarget, downsampleChartPoints, chartRangeLabel } from '../../lib/chartDownsample';
 
 interface LivePriceChartProps {
   token: TokenMarketData;
-  compare?: TokenMarketData | null;
+  range?: string;
 }
 
-export function LivePriceChart({ token, compare }: LivePriceChartProps) {
+export function LivePriceChart({ token, range = '30' }: LivePriceChartProps) {
   const isStable = token.type === 'stablecoin';
-  const history = token.history ?? [];
-  const labels = history.map((h) => h.date);
+  const raw = (token.history ?? [])
+    .map((h) => ({ value: h.price }))
+    .filter((p) => Number.isFinite(p.value));
 
-  const datasets = [
-    {
-      label: token.symbol,
-      data: history.map((h) => h.price),
-      borderColor: token.color,
-      borderWidth: 2,
-      pointRadius: 0,
-      pointHoverRadius: 4,
-      fill: isStable,
-      backgroundColor: isStable ? `${token.color}18` : 'transparent',
-      tension: 0.25,
-    },
-  ];
+  const target = chartBarTarget(range, raw.length);
+  const primary = downsampleChartPoints(raw, target);
 
-  const compareHistory = compare?.history ?? [];
-  if (compare && compareHistory.length) {
-    datasets.push({
-      label: compare.symbol,
-      data: compareHistory.map((h) => h.price),
-      borderColor: compare.color,
-      borderWidth: 1.5,
-      pointRadius: 0,
-      pointHoverRadius: 4,
-      fill: false,
-      backgroundColor: 'transparent',
-      tension: 0.25,
-    });
-  }
+  const prices = primary.map((p) => p.value);
+  const min = prices.length ? Math.min(...prices) : token.price;
+  const max = prices.length ? Math.max(...prices) : token.price;
 
-  const prices = history.map((h) => h.price);
-  const min = prices.length ? Math.min(...prices) : 0;
-  const max = prices.length ? Math.max(...prices) : 0;
+  const yMin = isStable ? 0.998 : undefined;
+  const yMax = isStable ? 1.002 : undefined;
 
-  const yMin = isStable ? 0.995 : undefined;
-  const yMax = isStable ? 1.005 : undefined;
-  const yFormat = (v: number) => formatPrice(v, token.type);
-
-  const options = {
-    ...baseChartOptions({ yFormat, yMin, yMax, showLegend: !!compare }),
-    plugins: {
-      ...baseChartOptions({ yFormat, yMin, yMax, showLegend: !!compare }).plugins,
-      annotation: isStable
-        ? {
-            annotations: {
-              pegLine: {
-                type: 'line' as const,
-                yMin: 1.0,
-                yMax: 1.0,
-                borderColor: 'rgba(255,255,255,0.35)',
-                borderWidth: 1,
-                borderDash: [6, 4],
-              },
-            },
-          }
-        : undefined,
-    },
-  };
-
-  const rangeLabel = history.length > 1
-    ? `${formatPrice(min, token.type)} — ${formatPrice(max, token.type)}`
-    : '—';
-
-  const change = token.change24h ?? 0;
+  const lineColor = token.color && token.color !== '#ffffff' ? token.color : '#ffffff';
+  const hasLiveHistory = primary.length >= 2;
 
   return (
-    <div className="live-chart cult-shadow-deep">
+    <div className="live-chart">
       <div className="live-chart__head">
         <div>
-          <div className="live-chart__symbol" style={{ color: token.color }}>{token.symbol}</div>
+          <div className="live-chart__symbol" style={{ color: lineColor }}>{token.symbol}</div>
           <div className="live-chart__name">{token.name}</div>
         </div>
         <div className="live-chart__price-block">
           <div className="live-chart__price tabular-nums">{formatPrice(token.price, token.type)}</div>
-          <div className={`live-chart__change tabular-nums ${change >= 0 ? 'val-green' : 'val-red'}`}>
-            {change >= 0 ? '+' : ''}{change.toFixed(2)}% 24h
+          <div className={`live-chart__change tabular-nums ${(token.change24h ?? 0) >= 0 ? 'val-green' : 'val-red'}`}>
+            {(token.change24h ?? 0) >= 0 ? '+' : ''}{(token.change24h ?? 0).toFixed(2)}% 24h
           </div>
         </div>
       </div>
 
       <div className="live-chart__canvas">
-        <Line data={{ labels, datasets }} options={options} />
+        {hasLiveHistory ? (
+          <SimpleBarChart
+            key={`${token.id}-${range}-${primary.length}-${primary[primary.length - 1]?.value}`}
+            data={primary}
+            height={320}
+            color={lineColor}
+            yMin={yMin}
+            yMax={yMax}
+          />
+        ) : (
+          <div className="live-chart__empty">No chart data, check backend is running (npm run dev:all)</div>
+        )}
       </div>
 
-      <div className="live-chart__foot">
-        <span className="live-chart__range">{rangeLabel}</span>
-        <span className="live-chart__source">CoinGecko · live</span>
-      </div>
+      {hasLiveHistory && (
+        <div className="live-chart__foot">
+          <span className="live-chart__range tabular-nums">
+            {formatPrice(min, token.type)}, {formatPrice(max, token.type)}
+          </span>
+          <span className="live-chart__range-label">{chartRangeLabel(range)}</span>
+        </div>
+      )}
     </div>
   );
 }

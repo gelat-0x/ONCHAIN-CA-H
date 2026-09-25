@@ -1,9 +1,11 @@
 /**
- * Complete frxUSD PegKeeper pool registry — 29 pools
- * Sources: Dune (stablescarab/frax-frxusd-pegkeeper-pools), Frax bi-weekly reports, @Fraxfinance
+ * Canonical frxUSD PegKeeper pool registry — 30 pools (September 2026)
+ * Sources: Dune (stablescarab/frax-frxusd-pegkeeper-pools), Frax bi-weekly reports, Curve API
  * https://dune.com/stablescarab/frax-frxusd-pegkeeper-pools
  */
 import type { PoolData } from '../types/index.ts';
+
+export const MAX_POOL_USD = 100_000_000;
 
 export interface PoolRegistryEntry {
   id: string;
@@ -24,87 +26,564 @@ export interface PoolRegistryEntry {
    * This is the PRIMARY identifier for:
    * - Curve API live data (preferred)
    * - Dune PegKeeper query matching (address-based)
-   *
-   * Populate these as they are validated.
    */
   curvePoolAddress?: string;
 }
 
 export const POOL_REGISTRY: PoolRegistryEntry[] = [
-  { id: 'crvusd', stablecoin: 'crvUSD', name: 'frxUSD / crvUSD', partner: 'Curve Finance', partnerInitials: 'CV', partnerColor: '#00ff88', description: 'Overcollateralized stablecoin by Curve', chain: 'Ethereum', since: '2024-12', dlSymbols: ['FRXUSD-CRVUSD', 'CRVUSD-FRXUSD'], duneTvlFallback: 27_426_137, duneFrxUsdTvlFallback: 12_180_446 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x13e12BB0E6A2f1A3d6901a59a9d585e89A6243e1', },
-  { id: 'alusd', stablecoin: 'alUSD', name: 'frxUSD / alUSD', partner: 'Alchemix', partnerInitials: 'AL', partnerColor: '#5b8def', description: 'Self-repaying synthetic dollar', chain: 'Ethereum', since: '2025-03', dlSymbols: ['FRXUSD-ALUSD', 'ALUSD-FRXUSD'], duneTvlFallback: 4_267_302, duneFrxUsdTvlFallback: 2_100_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x17F9682c9cd1a448b31C0428F1D0783eD13a9Fa3', },
-  { id: 'msusd', stablecoin: 'msUSD', name: 'frxUSD / msUSD', partner: 'Metronome', partnerInitials: 'MS', partnerColor: '#ffffff', description: 'Synthetic USD minted against crypto collateral', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-MSUSD', 'MSUSD-FRXUSD'], duneTvlFallback: 4_354_752, duneFrxUsdTvlFallback: 4_000_618 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x9A9e2e70919c75D80aAaA1D483c46CdBb8ac4d1b', },
-  { id: 'pmusd', stablecoin: 'pmUSD', name: 'frxUSD / pmUSD', partner: 'RAAC Protocol', partnerInitials: 'RA', partnerColor: '#c9a227', description: 'Gold and precious-metals-backed stablecoin', chain: 'Ethereum', since: '2025-08', dlSymbols: ['FRXUSD-PMUSD', 'PMUSD-FRXUSD'], duneTvlFallback: 467_604, duneFrxUsdTvlFallback: 310_461 , curveUrl: 'https://curve.fi', curvePoolAddress: '0xBf5047039F2980C21eB5692c790BAd8A9533b900', },
-  { id: 'evausdt', stablecoin: 'evaUSDT', name: 'frxUSD / evaUSDT', partner: 'Eva Markets', partnerInitials: 'EV', partnerColor: '#00ff88', description: 'Yield from Wintermute loans on WildcatFi', chain: 'Ethereum', since: '2026-04', dlSymbols: ['FRXUSD-EVAUSDT', 'EVAUSDT-FRXUSD'], duneTvlFallback: 460_190, duneFrxUsdTvlFallback: 230_000  , curveUrl: 'https://curve.fi', curvePoolAddress: '0x552827613fEA5EaDa3871f83b2d407d50CB04116', },
-  // OUSD PegKeeper pool from Origin Protocol. Validated via Curve API and Dune query 7767958.
-  { id: 'ousd', stablecoin: 'OUSD', name: 'frxUSD / OUSD', partner: 'Origin Protocol', partnerInitials: 'OR', partnerColor: '#7b68ee', description: 'Yield-bearing stablecoin by Origin', chain: 'Ethereum', since: '2025-10', dlSymbols: ['FRXUSD-OUSD', 'OUSD-FRXUSD'], duneTvlFallback: 358_865, duneFrxUsdTvlFallback: 131_204 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x68d03Ed49800e92D7Aa8aB171424007e55Fd1F49', },
-  // USPC PegKeeper pool from Coinshift. Validated via Curve API (frxUSD + USPC).
-  { id: 'uspc', stablecoin: 'USPC', name: 'frxUSD / USPC', partner: 'Coinshift', partnerInitials: 'CS', partnerColor: '#ffffff', description: 'Institutional credit yield — BlackRock, Fidelity, Apollo', chain: 'Ethereum', since: '2026-04', dlSymbols: ['FRXUSD-USPC', 'USPC-FRXUSD'], duneTvlFallback: 201_373, duneFrxUsdTvlFallback: 100_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x96BCA2cea58A8e08E7da5C9D68b8aCBb28419d1d', },
-  // USP PegKeeper pool from Piku DAO. Validated via Curve API (frxUSD + USP).
-  { id: 'usp', stablecoin: 'USP', name: 'frxUSD / USP', partner: 'Piku DAO', partnerInitials: 'PK', partnerColor: '#ff6b6b', description: 'High-yield stablecoin with co-incentive program', chain: 'Ethereum', since: '2025-09', dlSymbols: ['FRXUSD-USP', 'USP-FRXUSD'], duneTvlFallback: 144_626, duneFrxUsdTvlFallback: 72_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0xd50492DE3541d75E61eDC34D1Aa79C7dC2d20da9', },
-  { id: 'avusd', stablecoin: 'avUSD', name: 'frxUSD / avUSD', partner: 'Avant Protocol', partnerInitials: 'AV', partnerColor: '#00d4aa', description: 'Stablecoin backed 1:1 by USDC', chain: 'Ethereum', since: '2025-11', dlSymbols: ['FRXUSD-AVUSD', 'AVUSD-FRXUSD'], duneTvlFallback: 243_037, duneFrxUsdTvlFallback: 410_916  , curveUrl: 'https://curve.fi', curvePoolAddress: '0xf76329c6dc10FdfbEe6CA520d0BF4d474E95E46E', },
-  { id: 'usg', stablecoin: 'USG', name: 'frxUSD / USG', partner: 'Tangent Protocol', partnerInitials: 'TG', partnerColor: '#ffaa00', description: 'Over-collateralized DeFi native dollar', chain: 'Ethereum', since: '2025-05', dlSymbols: ['FRXUSD-USG', 'USG-FRXUSD'], duneTvlFallback: 119_345, duneFrxUsdTvlFallback: 60_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0xEfc056790bb19702b2164ec6Ea6bA3AE01d81195', },
-  // tmvUSDC PegKeeper pool from Term Finance. Validated via Curve API (frxUSD + tmvUSDC).
-  { id: 'tmvusdc', stablecoin: 'tmvUSDC', name: 'frxUSD / tmvUSDC', partner: 'Term Finance', partnerInitials: 'TM', partnerColor: '#4ecdc4', description: 'Meta Vault receipt token for curated USDC yields', chain: 'Ethereum', since: '2025-06', dlSymbols: ['FRXUSD-TMVUSDC'], duneTvlFallback: 281_200, duneFrxUsdTvlFallback: 251_796 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x6dD7522c83ecd5d67F8eaF11A973219C6A9f7493', },
-  // srRoyUSDC PegKeeper pool from Royco. Validated via Curve API (frxUSD + srRoyUSDC).
-  { id: 'srroyusdc', stablecoin: 'srRoyUSDC', name: 'frxUSD / srRoyUSDC', partner: 'Royco', partnerInitials: 'RY', partnerColor: '#e8d5b7', description: 'Senior vault with diversified protected yield', chain: 'Ethereum', since: '2025-05', dlSymbols: ['FRXUSD-SRROYUSDC'], duneTvlFallback: 117_554, duneFrxUsdTvlFallback: 290_295 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x310a9Fd2906c6a3eE97289095b183f96309c56AE', },
-  // sUSDat PegKeeper pool from Angle Protocol. Validated via Curve API (frxUSD + sUSDat).
-  { id: 'susdat', stablecoin: 'sUSDat', name: 'frxUSD / sUSDat', partner: 'Angle Protocol', partnerInitials: 'AN', partnerColor: '#a78bfa', description: 'Savings USDat stable yield token', chain: 'Ethereum', since: '2025-07', dlSymbols: ['FRXUSD-SUSDAT'], duneTvlFallback: 227_932, duneFrxUsdTvlFallback: 110_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0xcAF1969E9ba98C05113b75d8633A17196e2D02a5', },
-  // fxUSD PegKeeper pool from f(x) Protocol. Validated via Curve API and Dune query 7767958.
-  { id: 'fxusd', stablecoin: 'fxUSD', name: 'fxUSD / frxUSD', partner: 'f(x) Protocol', partnerInitials: 'FX', partnerColor: '#60a5fa', description: 'Over-collateralized stablecoin backed by WBTC and stETH', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-FXUSD', 'FXUSD-FRXUSD'], duneTvlFallback: 99_308, duneFrxUsdTvlFallback: 121_454 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x851907CAC684797eee43669798D78004e269Cb5E', },
-  // muBOND PegKeeper pool from Resupply. Validated via Curve API (frxUSD + muBOND).
-  { id: 'mubond', stablecoin: 'muBOND', name: 'frxUSD / muBOND', partner: 'Resupply', partnerInitials: 'MU', partnerColor: '#f472b6', description: 'Resupply bond token paired with frxUSD', chain: 'Ethereum', since: '2025-08', dlSymbols: ['FRXUSD-MUBOND'], duneTvlFallback: 99_348, duneFrxUsdTvlFallback: 50_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x01646F6fe0d75CEd6E514faB0Ea2F4ed5e1A5C9F', },
-  { id: 'sdola', stablecoin: 'sDOLA', name: 'frxUSD / sDOLA', partner: 'Inverse Finance', partnerInitials: 'IN', partnerColor: '#34d399', description: 'Yield-bearing DOLA savings token', chain: 'Ethereum', since: '2025-06', dlSymbols: ['FRXUSD-SDOLA', 'SDOLA-FRXUSD'], duneTvlFallback: 111_534, duneFrxUsdTvlFallback: 55_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x9D8AFD5Ce19A3b948049468188f1De13951A4383', },
-  // savUSD PegKeeper pool from Avant Protocol. Validated via Curve API (frxUSD + savUSD).
-  { id: 'savusd', stablecoin: 'savUSD', name: 'frxUSD / savUSD', partner: 'Avant Protocol', partnerInitials: 'AV', partnerColor: '#00d4aa', description: 'Yield-bearing savings stablecoin by Avant', chain: 'Ethereum', since: '2025-11', dlSymbols: ['FRXUSD-SAVUSD'], duneTvlFallback: 85_722, duneFrxUsdTvlFallback: 65_718 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x917213760aF19E938E1C5cf4c6c3a963f6F32152', },
-  // iUSD PegKeeper pool from infiniFi. Validated via Curve API (frxUSD + iUSD).
-  { id: 'iusd', stablecoin: 'iUSD', name: 'frxUSD / iUSD', partner: 'infiniFi', partnerInitials: 'IF', partnerColor: '#818cf8', description: 'Fractional-reserve stablecoin with tiered yield', chain: 'Ethereum', since: '2025-10', dlSymbols: ['FRXUSD-IUSD', 'IUSD-FRXUSD'], duneTvlFallback: 55_119, duneFrxUsdTvlFallback: 59_868 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x3e823bd1015Ba1A12F2F8aFD631c822a1CBA0de7', },
-  // ebUSD PegKeeper pool from Ebisu. Validated via Curve API (frxUSD + ebUSD).
-  { id: 'ebusd', stablecoin: 'ebUSD', name: 'frxUSD / ebUSD', partner: 'Ebisu', partnerInitials: 'EB', partnerColor: '#94a3b8', description: 'Ebisu stablecoin PegKeeper integration', chain: 'Ethereum', since: '2025-07', dlSymbols: ['FRXUSD-EBUSD'], duneTvlFallback: 50_865, duneFrxUsdTvlFallback: 25_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x31d563e7d382CD934014BeC8C6C931751E6b3a9a', },
-  // USDaf PegKeeper pool from Asymmetry Finance. Validated via Curve API (frxUSD + USDaf).
-  { id: 'usdaf', stablecoin: 'USDaf', name: 'frxUSD / USDaf', partner: 'Asymmetry Finance', partnerInitials: 'AS', partnerColor: '#fbbf24', description: 'Overcollateralized stablecoin built on Liquity v2', chain: 'Ethereum', since: '2025-05', dlSymbols: ['FRXUSD-USDAF'], duneTvlFallback: 50_591, duneFrxUsdTvlFallback: 96_354 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x20d4c49a873EaeFf76EfBD0cF19002F6E19EF52c', },
-  // AZND PegKeeper pool from Anzen Finance. Validated via Curve API (frxUSD + AZND).
-  { id: 'aznd', stablecoin: 'AZND', name: 'frxUSD / AZND', partner: 'Anzen Finance', partnerInitials: 'AZ', partnerColor: '#22d3ee', description: 'Azerbaijani Manat-backed regional stablecoin', chain: 'Ethereum', since: '2025-05', dlSymbols: ['FRXUSD-AZND'], duneTvlFallback: 68_720, duneFrxUsdTvlFallback: 34_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x16a973F8e466F44e9eA67e7e2d3166bD460ea852', },
-  // YUSD PegKeeper pool from Aegis. Validated via Curve API (frxUSD + YUSD).
-  { id: 'yusd', stablecoin: 'YUSD', name: 'frxUSD / YUSD', partner: 'Aegis', partnerInitials: 'AE', partnerColor: '#fb923c', description: 'Bitcoin-backed delta-neutral stablecoin', chain: 'Ethereum', since: '2025-06', dlSymbols: ['FRXUSD-YUSD'], duneTvlFallback: 19_107, duneFrxUsdTvlFallback: 19_107 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x2Cc565dDe7C078A8E477763a34C40e52b13e6396', },
-  { id: 'usdp', stablecoin: 'USDp', name: 'frxUSD / USDp', partner: 'Parallel', partnerInitials: 'PA', partnerColor: '#a3e635', description: 'Overcollateralized stablecoin by Parallel', chain: 'Ethereum', since: '2026-03', dlSymbols: ['FRXUSD-USDP'], duneTvlFallback: 4_068, duneFrxUsdTvlFallback: 1_604 , curveUrl: 'https://curve.fi', },
-  // dUSD PegKeeper pool from dTRINITY (correct/official). Curve pool: 0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951. Stablecoin token (sdUSD): 0x7CB20517776636eD76b68EdB3D99DCce356ABf02. Validated via Curve API.
-  { id: 'dusd', stablecoin: 'dUSD', name: 'frxUSD / dUSD', partner: 'dTRINITY', partnerInitials: 'DT', partnerColor: '#00ff88', description: 'Subsidized-borrowing stablecoin backed by yield reserves', chain: 'Ethereum', since: '2025-09', dlSymbols: ['FRXUSD-DUSD', 'DUSD-FRXUSD'], duneTvlFallback: 275, duneFrxUsdTvlFallback: 229 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951', },
-  { id: 'usdf', stablecoin: 'USDf', name: 'frxUSD / USDf', partner: 'Falcon Finance', partnerInitials: 'FF', partnerColor: '#64748b', description: 'Over-collateralized synthetic dollar by DWF Labs', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-USDF'], duneTvlFallback: 1_387, duneFrxUsdTvlFallback: 1_119 , curveUrl: 'https://curve.fi', },
-  { id: 'usdifi', stablecoin: 'USDfi', name: 'frxUSD / USDfi', partner: 'USDFI Protocol', partnerInitials: 'UF', partnerColor: '#78716c', description: 'Non-custodial stablecoin backed by protocol revenues', chain: 'Ethereum', since: '2025-03', dlSymbols: ['FRXUSD-USDFI'], duneTvlFallback: 128, duneFrxUsdTvlFallback: 128 , curveUrl: 'https://curve.fi', },
-  { id: 'reusd', stablecoin: 'reUSD', name: 'frxUSD / reUSD', partner: 'Re Protocol', partnerInitials: 'RE', partnerColor: '#c084fc', description: 'Principal-protected yield-accruing stablecoin', chain: 'Ethereum', since: '2025-04', dlSymbols: ['FRXUSD-REUSD'], duneTvlFallback: 113, duneFrxUsdTvlFallback: 113 , curveUrl: 'https://curve.fi', },
-
-  // USD3 PegKeeper pool from 3Jane (correct/official). Curve pool: 0x7ba89bc658c07569cfa6d7947adaa80181a24568. Stablecoin token (USD3): 0x056b269eb1f75477a8666ae8c7fe01b64dd55ecc. Verified via Curve API (exists on Ethereum, contains frxUSD, TVL ~$1.55m).
-  { id: 'usd3', stablecoin: 'USD3', name: 'frxUSD / USD3', partner: '3Jane', partnerInitials: 'JA', partnerColor: '#eab308', description: 'Stablecoin by 3Jane', chain: 'Ethereum', since: '2026-06', dlSymbols: ['FRXUSD-USD3', 'USD3-FRXUSD'], duneTvlFallback: 1_550_000, duneFrxUsdTvlFallback: 775_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x7ba89bc658c07569cfa6d7947adaa80181a24568', },
-
-  // HyperEVM PegKeeper pool: USDP / frxUSD.
-  // Verified via HypurrScan explorer (EVM balance ~447k USD, reported ~438k frxUSD liquidity).
-  // Added using existing `chain` field ('HyperEVM') and `curvePoolAddress`.
-  // Short-term: falls back to dune*Fallback (multi-chain Curve/Dune support pending).
-  { id: 'usdp-hyper', stablecoin: 'USDP', name: 'frxUSD / USDP', partner: 'Parallel', partnerInitials: 'PA', partnerColor: '#a3e635', description: 'USDP/frxUSD PegKeeper pool on HyperEVM', chain: 'HyperEVM', since: '2026-06', dlSymbols: ['FRXUSD-USDP-HYPER'], duneTvlFallback: 447_611, duneFrxUsdTvlFallback: 438_000 , curveUrl: 'https://curve.fi', curvePoolAddress: '0x0b695b6f4c8ffc910326b0938f83ea448b2ab735', },
+  {
+    id: 'crvusd',
+    stablecoin: 'crvUSD',
+    name: 'frxUSD / crvUSD',
+    partner: 'Curve Finance',
+    partnerInitials: 'CV',
+    partnerColor: '#00ff88',
+    description:
+      'Overcollateralized stablecoin from Curve, minted against crypto collateral via LLAMMA. A core frxUSD PegKeeper pair on Ethereum.',
+    chain: 'Ethereum',
+    since: '2024-12',
+    dlSymbols: ['FRXUSD-CRVUSD', 'CRVUSD-FRXUSD'],
+    duneTvlFallback: 11_020_989,
+    duneFrxUsdTvlFallback: 2_902_752,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x13e12BB0E6A2f1A3d6901a59a9d585e89A6243e1',
+  },
+  {
+    id: 'msusd',
+    stablecoin: 'msUSD',
+    name: 'frxUSD / msUSD',
+    partner: 'Metronome',
+    partnerInitials: 'MS',
+    partnerColor: '#ef4444',
+    description:
+      'Synthetic USD from Metronome Synth, minted against deposited crypto collateral.',
+    chain: 'Ethereum',
+    since: '2025-04',
+    dlSymbols: ['FRXUSD-MSUSD', 'MSUSD-FRXUSD'],
+    duneTvlFallback: 11_006_657,
+    duneFrxUsdTvlFallback: 4_768_029,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x9A9e2e70919c75D80aAaA1D483c46CdBb8ac4d1b',
+  },
+  {
+    id: 'alusd',
+    stablecoin: 'alUSD',
+    name: 'frxUSD / alUSD',
+    partner: 'Alchemix',
+    partnerInitials: 'AL',
+    partnerColor: '#5b8def',
+    description:
+      'Self-repaying stablecoin from Alchemix — collateral yield pays down debt automatically. frxUSD PegKeeper since March 2026.',
+    chain: 'Ethereum',
+    since: '2025-03',
+    dlSymbols: ['FRXUSD-ALUSD', 'ALUSD-FRXUSD'],
+    duneTvlFallback: 4_362_063,
+    duneFrxUsdTvlFallback: 390_936,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x17F9682c9cd1a448b31C0428F1D0783eD13a9Fa3',
+  },
+  {
+    id: 'pmusd',
+    stablecoin: 'pmUSD',
+    name: 'frxUSD / pmUSD',
+    partner: 'RAAC',
+    partnerInitials: 'RA',
+    partnerColor: '#c9a227',
+    description:
+      'RWA-backed stablecoin from RAAC, collateralized by tokenized gold and precious metals.',
+    chain: 'Ethereum',
+    since: '2025-08',
+    dlSymbols: ['FRXUSD-PMUSD', 'PMUSD-FRXUSD'],
+    duneTvlFallback: 3_924_894,
+    duneFrxUsdTvlFallback: 146_204,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0xBf5047039F2980C21eB5692c790BAd8A9533b900',
+  },
+  {
+    id: 'usd3',
+    stablecoin: 'USD3',
+    name: 'frxUSD / USD3',
+    partner: '3Jane',
+    partnerInitials: 'JA',
+    partnerColor: '#eab308',
+    description:
+      'Credit-backed yieldcoin from 3Jane, backed by uncollateralized loan lines with a variable peg tied to portfolio performance.',
+    chain: 'Ethereum',
+    since: '2026-06',
+    dlSymbols: ['FRXUSD-USD3', 'USD3-FRXUSD'],
+    duneTvlFallback: 2_812_369,
+    duneFrxUsdTvlFallback: 1_617_617,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x7ba89bc658c07569cfa6d7947adaa80181a24568',
+  },
+  {
+    id: 'usg',
+    stablecoin: 'USG',
+    name: 'frxUSD / USG',
+    partner: 'Tangent',
+    partnerInitials: 'TG',
+    partnerColor: '#ffaa00',
+    description:
+      'CDP stablecoin from Tangent, minted against Curve LP tokens with Tangent gauge incentives.',
+    chain: 'Ethereum',
+    since: '2025-05',
+    dlSymbols: ['FRXUSD-USG', 'USG-FRXUSD'],
+    duneTvlFallback: 1_621_388,
+    duneFrxUsdTvlFallback: 571_580,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0xEfc056790bb19702b2164ec6Ea6bA3AE01d81195',
+  },
+  {
+    id: 'sdola',
+    stablecoin: 'sDOLA',
+    name: 'frxUSD / sDOLA',
+    partner: 'Inverse Finance',
+    partnerInitials: 'IN',
+    partnerColor: '#34d399',
+    description:
+      "Yield-bearing DOLA from Inverse Finance — auto-compounds returns from the FiRM lending market.",
+    chain: 'Ethereum',
+    since: '2025-06',
+    dlSymbols: ['FRXUSD-SDOLA', 'SDOLA-FRXUSD'],
+    duneTvlFallback: 1_612_479,
+    duneFrxUsdTvlFallback: 280_866,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x9D8AFD5Ce19A3b948049468188f1De13951A4383',
+  },
+  {
+    id: 'susds',
+    stablecoin: 'sUSDS',
+    name: 'frxUSD / sUSDS',
+    partner: 'Sky',
+    partnerInitials: 'SK',
+    partnerColor: '#1eaaee',
+    description:
+      'Yield-bearing savings token from Sky — earns the Sky Savings Rate on top of USDS.',
+    chain: 'Ethereum',
+    since: '2025-08',
+    dlSymbols: ['FRXUSD-SUSDS', 'SUSDS-FRXUSD'],
+    duneTvlFallback: 1_568_983,
+    duneFrxUsdTvlFallback: 757_441,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x81a2612f6dea269a6dd1f6deab45c5424ee2c4b7',
+  },
+  {
+    id: 'avusd',
+    stablecoin: 'avUSD',
+    name: 'frxUSD / avUSD',
+    partner: 'Avant Protocol',
+    partnerInitials: 'AV',
+    partnerColor: '#00d4aa',
+    description:
+      'Stable-value token from Avant Protocol — yield from market-neutral on-chain strategies rather than plain USDC backing.',
+    chain: 'Ethereum',
+    since: '2025-11',
+    dlSymbols: ['FRXUSD-AVUSD', 'AVUSD-FRXUSD'],
+    duneTvlFallback: 917_058,
+    duneFrxUsdTvlFallback: 379_331,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0xf76329c6dc10FdfbEe6CA520d0BF4d474E95E46E',
+  },
+  {
+    id: 'srroyusdc',
+    stablecoin: 'srRoyUSDC',
+    name: 'frxUSD / srRoyUSDC',
+    partner: 'Royco',
+    partnerInitials: 'RY',
+    partnerColor: '#e8d5b7',
+    description:
+      'Senior vault share from Royco — protected yield across curated tranches, paired with frxUSD on Curve.',
+    chain: 'Ethereum',
+    since: '2025-05',
+    dlSymbols: ['FRXUSD-SRROYUSDC'],
+    duneTvlFallback: 872_093,
+    duneFrxUsdTvlFallback: 354_676,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x310a9Fd2906c6a3eE97289095b183f96309c56AE',
+  },
+  {
+    id: 'evausdt',
+    stablecoin: 'evaUSDT',
+    name: 'frxUSD / evaUSDT',
+    partner: 'Eva',
+    partnerInitials: 'EV',
+    partnerColor: '#00ff88',
+    description: 'Yield-bearing token from Eva — earns from institutional credit lines funded via Wildcat markets.',
+    chain: 'Ethereum',
+    since: '2026-04',
+    dlSymbols: ['FRXUSD-EVAUSDT', 'EVAUSDT-FRXUSD'],
+    duneTvlFallback: 763_765,
+    duneFrxUsdTvlFallback: 257_387,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x552827613fEA5EaDa3871f83b2d407d50CB04116',
+  },
+  {
+    id: 'uspc',
+    stablecoin: 'USPC',
+    name: 'frxUSD / USPC',
+    partner: 'Coinshift',
+    partnerInitials: 'CS',
+    partnerColor: '#dc2626',
+    description: "Institutional yield stablecoin from Coinshift, backed by Coinshift's treasury management strategies.",
+    chain: 'Ethereum',
+    since: '2026-04',
+    dlSymbols: ['FRXUSD-USPC', 'USPC-FRXUSD'],
+    duneTvlFallback: 527_011,
+    duneFrxUsdTvlFallback: 378_345,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x96BCA2cea58A8e08E7da5C9D68b8aCBb28419d1d',
+  },
+  {
+    id: 'dusd',
+    stablecoin: 'DUSD',
+    name: 'frxUSD / DUSD',
+    partner: 'Alto',
+    partnerInitials: 'AT',
+    partnerColor: '#009a49',
+    description:
+      "Alto's native stablecoin, minted and borrowed against collateral in isolated credit markets on Ethereum.",
+    chain: 'Ethereum',
+    since: '2025-09',
+    dlSymbols: ['FRXUSD-DUSD', 'DUSD-FRXUSD'],
+    duneTvlFallback: 501_020,
+    duneFrxUsdTvlFallback: 223_381,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x104d6a1b97A6CEf88D905d7b865A378d90be932A',
+  },
+  {
+    id: 'sdusd',
+    stablecoin: 'sdUSD',
+    name: 'frxUSD / sdUSD',
+    partner: 'dTrinity',
+    partnerInitials: 'DT',
+    partnerColor: '#6366f1',
+    description:
+      "Staked dUSD from dTrinity — a yield-bearing ERC-4626 vault token backed by dUSD supplied to dLEND.",
+    chain: 'Ethereum',
+    since: '2026-09',
+    dlSymbols: ['FRXUSD-SDUSD', 'SDUSD-FRXUSD'],
+    duneTvlFallback: 0,
+    duneFrxUsdTvlFallback: 0,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x5e9ce43c5b1e2872755977e0a57eac44c0c0f951',
+  },
+  {
+    id: 'susde',
+    stablecoin: 'sUSDe',
+    name: 'frxUSD / sUSDe',
+    partner: 'Ethena',
+    partnerInitials: 'EN',
+    partnerColor: '#e8e8e8',
+    description:
+      'Staked USDe from Ethena — a yield-bearing synthetic dollar, paired with frxUSD in a Curve PegKeeper pool.',
+    chain: 'Ethereum',
+    since: '2026-09',
+    dlSymbols: ['FRXUSD-SUSDE', 'SUSDE-FRXUSD'],
+    duneTvlFallback: 0,
+    duneFrxUsdTvlFallback: 0,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x47Ab5f9D8C9C7D002a92320f23a696D348C56A7F',
+  },
+  {
+    id: 'tmvusdc',
+    stablecoin: 'tmvUSDC',
+    name: 'frxUSD / tmvUSDC',
+    partner: 'Term Finance',
+    partnerInitials: 'TM',
+    partnerColor: '#4ecdc4',
+    description:
+      'Meta-vault receipt token from Term Finance — represents curated USDC yields from fixed-rate lending auctions.',
+    chain: 'Ethereum',
+    since: '2025-06',
+    dlSymbols: ['FRXUSD-TMVUSDC'],
+    duneTvlFallback: 485_132,
+    duneFrxUsdTvlFallback: 253_941,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x6dD7522c83ecd5d67F8eaF11A973219C6A9f7493',
+  },
+  {
+    id: 'ousd',
+    stablecoin: 'OUSD',
+    name: 'frxUSD / OUSD',
+    partner: 'Origin Protocol',
+    partnerInitials: 'OR',
+    partnerColor: '#7b68ee',
+    description:
+      'Yield-bearing stablecoin from Origin Protocol — automatically routes collateral across DeFi yield strategies.',
+    chain: 'Ethereum',
+    since: '2025-10',
+    dlSymbols: ['FRXUSD-OUSD', 'OUSD-FRXUSD'],
+    duneTvlFallback: 221_874,
+    duneFrxUsdTvlFallback: 108_181,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x68d03Ed49800e92D7Aa8aB171424007e55Fd1F49',
+  },
+  {
+    id: 'mubond',
+    stablecoin: 'muBOND',
+    name: 'frxUSD / muBOND',
+    partner: 'Mu Digital',
+    partnerInitials: 'MU',
+    partnerColor: '#f472b6',
+    description:
+      'Junior first-loss tranche from Mu Digital — absorbs losses before other tranches in their credit stack.',
+    chain: 'Ethereum',
+    since: '2025-08',
+    dlSymbols: ['FRXUSD-MUBOND'],
+    duneTvlFallback: 200_212,
+    duneFrxUsdTvlFallback: 43_524,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x01646F6fe0d75CEd6E514faB0Ea2F4ed5e1A5C9F',
+  },
+  {
+    id: 'aznd',
+    stablecoin: 'AZND',
+    name: 'frxUSD / AZND',
+    partner: 'Mu Digital',
+    partnerInitials: 'AZ',
+    partnerColor: '#22d3ee',
+    description:
+      'Synthetic dollar from Mu Digital, backed by tokenized Asian fixed-income RWAs. Separate from the junior muBOND tranche.',
+    chain: 'Ethereum',
+    since: '2025-05',
+    dlSymbols: ['FRXUSD-AZND'],
+    duneTvlFallback: 200_114,
+    duneFrxUsdTvlFallback: 47_765,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x16a973F8e466F44e9eA67e7e2d3166bD460ea852',
+  },
+  {
+    id: 'fxusd',
+    stablecoin: 'fxUSD',
+    name: 'frxUSD / fxUSD',
+    partner: 'f(x) Protocol',
+    partnerInitials: 'FX',
+    partnerColor: '#60a5fa',
+    description: 'Overcollateralized stablecoin from f(x) Protocol, backed by WBTC and stETH.',
+    chain: 'Ethereum',
+    since: '2025-04',
+    dlSymbols: ['FRXUSD-FXUSD', 'FXUSD-FRXUSD'],
+    duneTvlFallback: 193_801,
+    duneFrxUsdTvlFallback: 103_378,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x851907CAC684797eee43669798D78004e269Cb5E',
+  },
+  {
+    id: 'savusd',
+    stablecoin: 'savUSD',
+    name: 'frxUSD / savUSD',
+    partner: 'Avant Protocol',
+    partnerInitials: 'AV',
+    partnerColor: '#00d4aa',
+    description:
+      'Savings layer on avUSD from Avant Protocol — deposit avUSD to earn the protocol savings rate.',
+    chain: 'Ethereum',
+    since: '2025-11',
+    dlSymbols: ['FRXUSD-SAVUSD'],
+    duneTvlFallback: 154_722,
+    duneFrxUsdTvlFallback: 54_289,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x917213760aF19E938E1C5cf4c6c3a963f6F32152',
+  },
+  {
+    id: 'susdat',
+    stablecoin: 'sUSDat',
+    name: 'frxUSD / sUSDat',
+    partner: 'Saturn',
+    partnerInitials: 'ST',
+    partnerColor: '#a78bfa',
+    description:
+      "Yield-bearing stablecoin from Saturn — returns accrue from Saturn's on-chain yield stack.",
+    chain: 'Ethereum',
+    since: '2025-07',
+    dlSymbols: ['FRXUSD-SUSDAT'],
+    duneTvlFallback: 138_634,
+    duneFrxUsdTvlFallback: 15_975,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0xcAF1969E9ba98C05113b75d8633A17196e2D02a5',
+  },
+  {
+    id: 'usp',
+    stablecoin: 'USP',
+    name: 'frxUSD / USP',
+    partner: 'PikuDAO',
+    partnerInitials: 'PK',
+    partnerColor: '#ff6b6b',
+    description:
+      'Yield-bearing stablecoin from PikuDAO — savings rate accrues directly to token holders.',
+    chain: 'Ethereum',
+    since: '2025-09',
+    dlSymbols: ['FRXUSD-USP', 'USP-FRXUSD'],
+    duneTvlFallback: 134_286,
+    duneFrxUsdTvlFallback: 60_594,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0xd50492DE3541d75E61eDC34D1Aa79C7dC2d20da9',
+  },
+  {
+    id: 'usdaf',
+    stablecoin: 'USDaf',
+    name: 'frxUSD / USDaf',
+    partner: 'Asymmetry Finance',
+    partnerInitials: 'AS',
+    partnerColor: '#fbbf24',
+    description:
+      'Overcollateralized stablecoin from Asymmetry Finance on Liquity v2 — governance-minimized CDP design.',
+    chain: 'Ethereum',
+    since: '2025-05',
+    dlSymbols: ['FRXUSD-USDAF'],
+    duneTvlFallback: 56_927,
+    duneFrxUsdTvlFallback: 11_088,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x20d4c49a873EaeFf76EfBD0cF19002F6E19EF52c',
+  },
+  {
+    id: 'yusd',
+    stablecoin: 'YUSD',
+    name: 'frxUSD / YUSD',
+    partner: 'Aegis',
+    partnerInitials: 'AE',
+    partnerColor: '#fb923c',
+    description: 'Bitcoin-backed delta-neutral stablecoin from Aegis — hedged via perpetual futures.',
+    chain: 'Ethereum',
+    since: '2025-06',
+    dlSymbols: ['FRXUSD-YUSD'],
+    duneTvlFallback: 40_011,
+    duneFrxUsdTvlFallback: 18_828,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x2Cc565dDe7C078A8E477763a34C40e52b13e6396',
+  },
+  {
+    id: 'ebusd',
+    stablecoin: 'ebUSD',
+    name: 'frxUSD / ebUSD',
+    partner: 'Ebisu Money',
+    partnerInitials: 'EB',
+    partnerColor: '#94a3b8',
+    description: "Stablecoin from Ebisu Money — used as collateral and liquidity in Ebisu's stablecoin credit market.",
+    chain: 'Ethereum',
+    since: '2025-07',
+    dlSymbols: ['FRXUSD-EBUSD'],
+    duneTvlFallback: 17_773,
+    duneFrxUsdTvlFallback: 6_263,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x31d563e7d382CD934014BeC8C6C931751E6b3a9a',
+  },
+  {
+    id: 'iusd',
+    stablecoin: 'iUSD',
+    name: 'frxUSD / iUSD',
+    partner: 'infiniFi',
+    partnerInitials: 'IF',
+    partnerColor: '#818cf8',
+    description: 'Fractional-reserve stablecoin from infiniFi — tiered yield based on lock-up duration.',
+    chain: 'Ethereum',
+    since: '2025-10',
+    dlSymbols: ['FRXUSD-IUSD', 'IUSD-FRXUSD'],
+    duneTvlFallback: 13_932,
+    duneFrxUsdTvlFallback: 7_017,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x3e823bd1015Ba1A12F2F8aFD631c822a1CBA0de7',
+  },
+  {
+    id: 'vusd',
+    stablecoin: 'VUSD',
+    name: 'frxUSD / VUSD',
+    partner: 'Vetro',
+    partnerInitials: 'VT',
+    partnerColor: '#8b5cf6',
+    description:
+      'Treasury-layer stablecoin from Vetro for institutional use — uses frxUSD PegKeeper liquidity on Curve.',
+    chain: 'Ethereum',
+    since: '2026-05',
+    dlSymbols: ['FRXUSD-VUSD', 'VUSD-FRXUSD'],
+    duneTvlFallback: 194_576,
+    duneFrxUsdTvlFallback: 97_693,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0xde0576968c898bbe7bf13d79862f252c58443f96',
+  },
+  {
+    id: 'trusd',
+    stablecoin: 'trUSD',
+    name: 'frxUSD / trUSD',
+    partner: 'Tori Finance',
+    partnerInitials: 'TF',
+    partnerColor: '#38bdf8',
+    description:
+      'Tori Finance stablecoin backed by delta-neutral trading positions that hedge directional exposure.',
+    chain: 'Ethereum',
+    since: '2026-07',
+    dlSymbols: ['FRXUSD-TRUSD', 'TRUSD-FRXUSD'],
+    duneTvlFallback: 3_907_407,
+    duneFrxUsdTvlFallback: 2_216_676,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0xd1D954BC94c843815EC7B8119f2de00AF27Fa6Ff',
+  },
+  {
+    id: 'susdai',
+    stablecoin: 'sUSDai',
+    name: 'frxUSD / sUSDai',
+    partner: 'USD.AI',
+    partnerInitials: 'UA',
+    partnerColor: '#8B7355',
+    description:
+      'sUSDai is a yield-bearing synthetic dollar backed by GPU-collateralized loans — the physical backbone of the AI economy.',
+    chain: 'Ethereum',
+    since: '2026-09',
+    dlSymbols: ['FRXUSD-SUSDAI', 'SUSDAI-FRXUSD'],
+    duneTvlFallback: 0,
+    duneFrxUsdTvlFallback: 0,
+    curveUrl: 'https://curve.fi',
+    curvePoolAddress: '0x1Fce0B50C48A7Bf67022a82deC9C26e02683bF52',
+  },
 ];
 
 export const DUNE_BASELINE = {
-  totalPoolTvl: 39_759_744,
-  totalFrxUsdInPools: 19_938_000,
-  poolCount: 29,
-  partnerCount: 29,
+  totalPoolTvl: 41_000_000,
+  totalFrxUsdInPools: 17_200_000,
+  poolCount: 27,
+  partnerCount: 27,
   tvlChange30d: 9_941_043,
   tvlChange30dPct: 33.85,
   source: 'Dune — stablescarab/frax-frxusd-pegkeeper-pools',
 };
 
+/** Use live TVL only when plausible USD; otherwise registry/Dune fallback. */
+export function resolvePoolTvl(entry: PoolRegistryEntry, liveTvl?: number): number {
+  const n = Number(liveTvl);
+  if (Number.isFinite(n) && n > 0 && n <= MAX_POOL_USD) return Math.round(n);
+  return entry.duneTvlFallback;
+}
+
+/** One current snapshot when no real historical series is available. */
+export function generateTvlHistory(currentTvl: number, _poolId?: string): number[] {
+  const v = Math.max(0, Math.round(currentTvl));
+  return [v];
+}
+
 export function registryToPoolData(
   entry: PoolRegistryEntry,
-  live?: { tvl?: number; apr?: number; volume24h?: number },
-  frxPrice = 1.0,
+  live?: { tvl?: number; apr?: number; volume24h?: number; frxUsdBalance?: number },
+  _frxPrice = 1.0,
 ): PoolData {
-  const tvl = live?.tvl ?? entry.duneTvlFallback;
-  const apr = live?.apr ?? 0;
-  const pegDeviation = Array.from({ length: 7 }, (_, i) => {
-    const n = Math.sin(i * 0.5) * 0.0007;
-    return +(frxPrice + n).toFixed(4);
-  });
+  const tvl = resolvePoolTvl(entry, live?.tvl);
+  const apr =
+    live?.apr != null && Number.isFinite(live.apr) && live.apr >= 0.01 && live.apr <= 500
+      ? +live.apr.toFixed(2)
+      : live?.apr != null && Number.isFinite(live.apr) && live.apr >= 0.005 && live.apr < 0.01
+        ? 0.01
+        : 0;
+  const liveFrxUsdBalance =
+    live?.frxUsdBalance != null &&
+    Number.isFinite(live.frxUsdBalance) &&
+    live.frxUsdBalance >= 0 &&
+    live.frxUsdBalance <= MAX_POOL_USD
+      ? Math.round(live.frxUsdBalance)
+      : undefined;
+  const volumeRaw = live?.volume24h;
+  const volume24h =
+    volumeRaw != null && Number.isFinite(volumeRaw) && volumeRaw >= 0 && volumeRaw <= MAX_POOL_USD
+      ? Math.round(volumeRaw)
+      : 0;
 
   return {
     id: entry.id,
@@ -118,9 +597,12 @@ export function registryToPoolData(
     since: entry.since,
     tvl: Math.round(tvl),
     apr: +apr.toFixed(1),
-    volume24h: Math.round(live?.volume24h ?? tvl * 0.08),
-    pegKeeperDebt: Math.round(entry.duneFrxUsdTvlFallback || tvl * 0.4),
-    pegDeviation,
+    volume24h,
+    // Retained for backward compatibility only; the UI must use frxUsdBalanceUsd.
+    pegKeeperDebt: liveFrxUsdBalance ?? 0,
+    ...(liveFrxUsdBalance != null ? { frxUsdBalanceUsd: liveFrxUsdBalance } : {}),
+    pegDeviation: [],
+    tvlHistory7d: generateTvlHistory(Math.round(tvl)),
     status: tvl > 1000 ? 'ACTIVE' : 'ALERT',
     curveUrl: entry.curveUrl,
   };

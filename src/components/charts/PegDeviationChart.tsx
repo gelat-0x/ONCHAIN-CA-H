@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -29,20 +28,18 @@ interface PegDeviationChartProps {
 }
 
 export function PegDeviationChart({ data }: PegDeviationChartProps) {
-  const [showEasterEgg, setShowEasterEgg] = useState(false);
-
   const chartData = {
     labels: data.map((d) => d.date),
     datasets: [
       {
         label: 'frxUSD Price',
         data: data.map((d) => d.price),
-        borderColor: '#FFFFFF',
+        borderColor: '#14b8a6',
         borderWidth: 1.5,
         pointRadius: 0,
         pointHoverRadius: 4,
         fill: false,
-        tension: 0.3,
+        tension: 0.2,
       },
     ],
   };
@@ -106,39 +103,14 @@ export function PegDeviationChart({ data }: PegDeviationChartProps) {
         max: 1.005,
       },
     },
-    onClick: () => setShowEasterEgg(true),
   };
 
   return (
-    <div className="chart-container" style={{ position: 'relative' }}>
-      <div className="chart-title">90-Day Peg History — frxUSD</div>
+    <div className="chart-container peg-chart" style={{ position: 'relative' }}>
+      <div className="chart-title">90-day peg, frxUSD</div>
       <div style={{ height: 320 }}>
         <Line data={chartData} options={options} />
       </div>
-      <div className="chart-source">
-        Powered by Chaos Proof of Reserves + Curve Finance
-      </div>
-      {showEasterEgg && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: '#161616',
-            border: '2px solid #FFFFFF',
-            borderRadius: 8,
-            padding: '16px 24px',
-            fontSize: 13,
-            color: '#FFFFFF',
-            zIndex: 10,
-            cursor: 'pointer',
-          }}
-          onClick={() => setShowEasterEgg(false)}
-        >
-          frxUSD has never broken peg. This line is the proof.
-        </div>
-      )}
     </div>
   );
 }

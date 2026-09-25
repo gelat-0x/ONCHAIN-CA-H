@@ -1,6 +1,12 @@
 import type { PoolData } from '../types';
 import { MiniSparkline } from './charts/MiniSparkline';
-import { useIntersection } from '../hooks/useIntersection';
+import { formatUsd } from '../lib/formatUsd';
+import { formatPoolApr, poolChartColor } from '../lib/poolChartColor';
+import { pegKeeperAprMetricLabel, pegKeeperAprSource, pegKeeperDisplayApr } from '../lib/pegKeeperApr';
+import stakeDaoBoost from '../assets/stakedao-boost.png';
+import type { PoolTag } from '../lib/poolTags';
+import { TokenLogo } from './TokenLogo';
+import { HubShareRing } from './HubShareRing';
 
 function aprClass(apr: number): string {
   if (apr > 10) return 'val-green';
@@ -9,106 +15,146 @@ function aprClass(apr: number): string {
   return 'val-muted';
 }
 
-function fmtUsd(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1e6).toFixed(2)}M`;
-  if (n >= 1000) return `$${(n / 1e3).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
-}
-
 interface PoolCardProps {
   pool: PoolData;
   index: number;
   featured?: boolean;
+  highlighted?: boolean;
+  tags?: PoolTag[];
+  className?: string;
+  inert?: boolean;
+  onExplore?: (pool: PoolData) => void;
 }
 
-export function PoolCard({ pool, index, featured }: PoolCardProps) {
-  const { ref, visible } = useIntersection();
-  const delay = (index % 9) * 60;
+export function PoolCard({
+  pool,
+  index,
+  featured,
+  highlighted,
+  tags,
+  className = '',
+  inert = false,
+  onExplore,
+}: PoolCardProps) {
+  const chartColor = poolChartColor(pool);
+  const clickable = Boolean(onExplore) && !inert;
+  const stagger = (index % 12) * 35;
+  const displayApr = pegKeeperDisplayApr(pool);
+  const aprSource = pegKeeperAprSource(pool);
+  const aprMetricLabel = pegKeeperAprMetricLabel(pool);
+  const shareTip =
+    pool.frxUsdSharePct != null ? `${pool.frxUsdSharePct.toFixed(1)}% of pool` : undefined;
 
   return (
     <article
-      ref={ref}
-      className={`pool-card fade-in ${visible ? 'visible' : ''} ${featured ? 'pool-card--featured' : ''}`}
-      style={{ transitionDelay: `${delay}ms` }}
+      className={`pool-card ${featured ? 'pool-card--featured' : ''} ${highlighted ? 'pool-card--highlight' : ''} ${clickable ? 'pool-card--clickable' : ''} ${className}`.trim()}
+      style={{
+        ['--pool-stagger' as string]: `${stagger}ms`,
+        ['--pool-accent' as string]: chartColor,
+      }}
+      aria-hidden={inert || undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? () => onExplore!(pool) : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onExplore!(pool);
+              }
+            }
+          : undefined
+      }
     >
       <div className="pool-card-top">
-        <div>
-          <div className="pool-card-pair">{pool.name}</div>
-          <div className="pool-card-partner">{pool.partner}</div>
-        </div>
-        <div
-          className="pool-card-orb"
-          style={{ background: `${pool.partnerColor}18`, color: pool.partnerColor, borderColor: `${pool.partnerColor}44` }}
-        >
-          {pool.partnerInitials}
+        <div className="pool-card-pair">{pool.name}</div>
+        <div className="pool-card-mark">
+          <TokenLogo
+            symbol={pool.stablecoin ?? pool.name.split('/')[1]?.trim() ?? pool.id}
+            poolId={pool.id}
+            fallbackInitials={pool.partnerInitials}
+            fallbackColor={chartColor}
+            className="pool-card-orb"
+          />
+          <span className="pool-card-partner">{pool.partner}</span>
         </div>
       </div>
 
-      {pool.description && (
-        <p className="pool-card-desc">{pool.description}</p>
+      {tags && tags.length > 0 && (
+        <div className="pool-card-tags" aria-label="Pool labels">
+          {tags.map((tag) => (
+            <span
+              key={tag.kind}
+              className={`pool-card-tag pool-card-tag--${tag.kind}`}
+            >
+              {tag.label}
+            </span>
+          ))}
+        </div>
       )}
+
+      <div className="pool-card-spark" aria-hidden="true">
+        <MiniSparkline
+          data={pool.tvlHistory7d ?? [pool.tvl]}
+          series={pool.tvlHistorySeries}
+          height={48}
+          color={chartColor}
+        />
+      </div>
 
       <div className="pool-card-metrics">
         <div className="pool-metric">
           <span className="metric-label">TVL</span>
-          <span className="metric-value val-green tabular-nums">{fmtUsd(pool.tvl)}</span>
+          <span className="metric-value val-green tabular-nums">{formatUsd(pool.tvl)}</span>
         </div>
-        <div className="pool-metric">
-          <span className="metric-label">APR</span>
-          <span className={`metric-value tabular-nums ${aprClass(pool.apr)}`}>
-            {pool.apr > 0 ? `${pool.apr}%` : '—'}
+        <div className="pool-metric pool-metric--apr">
+          <span className="metric-label">{aprMetricLabel}</span>
+          <span className="metric-value-row">
+            <span
+              className={`metric-value tabular-nums ${displayApr > 0 ? aprClass(displayApr) : 'val-muted'}`}
+            >
+              {formatPoolApr(displayApr)}
+            </span>
+            {aprSource === 'Stake DAO' && (
+              <span
+                className="pool-card-apr-mark"
+                title="Shown APR is coming from Stake DAO"
+              >
+                <img src={stakeDaoBoost} alt="" aria-hidden />
+              </span>
+            )}
           </span>
         </div>
         <div className="pool-metric">
           <span className="metric-label">Vol 24h</span>
-          <span className="metric-value tabular-nums">{fmtUsd(pool.volume24h)}</span>
+          <span className="metric-value tabular-nums">{formatUsd(pool.volume24h)}</span>
         </div>
-        <div className="pool-metric">
-          <span className="metric-label">Debt</span>
-          <span className="metric-value tabular-nums">{fmtUsd(pool.pegKeeperDebt)}</span>
+        <div
+          className="pool-metric"
+          title="Current frxUSD-side liquidity reported by Curve."
+        >
+          <span className="metric-label">frxUSD in pool</span>
+          <span className="metric-value-row">
+            <span className="metric-value tabular-nums">
+              {pool.frxUsdBalanceUsd != null ? formatUsd(pool.frxUsdBalanceUsd) : '—'}
+            </span>
+            {pool.frxUsdSharePct != null && (
+              <HubShareRing
+                percent={pool.frxUsdSharePct}
+                accent={chartColor}
+                size={20}
+                tip={shareTip}
+                className="hub-share-ring--pool"
+              />
+            )}
+          </span>
         </div>
-      </div>
-
-      <div className="pool-card-spark">
-        <MiniSparkline data={pool.pegDeviation} height={36} />
       </div>
 
       <div className="pool-card-foot">
-        <span className={`pill pill--${pool.status.toLowerCase()}`}>{pool.status}</span>
-        <a href={pool.curveUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost-sm">
-          Curve ↗
-        </a>
+        {clickable && <span className="pool-card-explore-btn">Explore</span>}
       </div>
     </article>
-  );
-}
-
-export function PoolDetailPanel({ pool }: { pool: PoolData | null }) {
-  if (!pool) {
-    return (
-      <div className="pool-detail-panel pool-detail-panel--empty">
-        <span className="hash">#</span> Select a pool from the constellation
-      </div>
-    );
-  }
-
-  return (
-    <div className="pool-detail-panel">
-      <div className="pool-detail-header">
-        <h3>{pool.name}</h3>
-        <span className={`pill pill--${pool.status.toLowerCase()}`}>{pool.status}</span>
-      </div>
-      <p className="pool-detail-partner">{pool.partner} · {pool.chain}</p>
-      {pool.description && <p className="pool-detail-desc">{pool.description}</p>}
-      <div className="pool-detail-grid">
-        <div><span className="metric-label">TVL</span><span className="metric-value val-green">{fmtUsd(pool.tvl)}</span></div>
-        <div><span className="metric-label">frxUSD Debt</span><span className="metric-value">{fmtUsd(pool.pegKeeperDebt)}</span></div>
-        <div><span className="metric-label">APR</span><span className={`metric-value ${aprClass(pool.apr)}`}>{pool.apr > 0 ? `${pool.apr}%` : '—'}</span></div>
-        <div><span className="metric-label">Since</span><span className="metric-value">{pool.since ?? '—'}</span></div>
-      </div>
-      <div style={{ height: 64, marginTop: 16 }}>
-        <MiniSparkline data={pool.pegDeviation} height={64} />
-      </div>
-    </div>
   );
 }

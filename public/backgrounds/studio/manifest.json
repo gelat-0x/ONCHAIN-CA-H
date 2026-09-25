@@ -1,0 +1,65 @@
+{
+  "backgrounds": [
+    {
+      "id": "midnight-gradient",
+      "label": "Midnight",
+      "file": "midnight-gradient.svg",
+      "tone": "dark"
+    },
+    {
+      "id": "graphite",
+      "label": "Graphite",
+      "file": "graphite.svg",
+      "tone": "dark"
+    },
+    {
+      "id": "deep-ocean",
+      "label": "Deep Ocean",
+      "file": "deep-ocean.svg",
+      "tone": "dark"
+    },
+    {
+      "id": "aurora",
+      "label": "Aurora",
+      "file": "aurora.svg",
+      "tone": "dark"
+    },
+    {
+      "id": "ember-glow",
+      "label": "Ember",
+      "file": "ember-glow.svg",
+      "tone": "dark"
+    },
+    {
+      "id": "porcelain",
+      "label": "Porcelain",
+      "file": "porcelain.svg",
+      "tone": "light"
+    },
+    {
+      "id": "pearl",
+      "label": "Pearl",
+      "file": "pearl.svg",
+      "tone": "light"
+    },
+    {
+      "id": "silver",
+      "label": "Silver",
+      "file": "silver.svg",
+      "tone": "light"
+    },
+    {
+      "id": "arctic",
+      "label": "Arctic",
+      "file": "arctic.svg",
+      "tone": "light"
+    },
+    {
+      "id": "sand",
+      "label": "Sand",
+      "file": "sand.svg",
+      "tone": "light"
+    }
+  ],
+  "updatedAt": "2026-07-07T18:25:22.376020+00:00"
+}

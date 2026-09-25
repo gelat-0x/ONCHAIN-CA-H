@@ -1,13 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { PoolData } from '../types';
+import { formatUsd } from '../lib/formatUsd';
+import { TokenLogo } from './TokenLogo';
 
 type SortKey = 'tvl' | 'debt' | 'volume' | 'partner';
-
-function fmtUsd(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1e6).toFixed(2)}M`;
-  if (n >= 1000) return `$${(n / 1e3).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
-}
 
 interface PoolsTableProps {
   pools: PoolData[];
@@ -47,7 +43,7 @@ export function PoolsTable({ pools, totalTvl }: PoolsTableProps) {
     <div className="table-wrap pools-table">
       <div className="table-header-bar">
         <span className="pools-table__hint">
-          All frxUSD PegKeeper pools · sorted by {sortKey.toUpperCase()}
+          {pools.length} frxUSD PegKeeper pools · sorted by {sortKey.toUpperCase()}
         </span>
       </div>
       <table className="data-table">
@@ -71,12 +67,23 @@ export function PoolsTable({ pools, totalTvl }: PoolsTableProps) {
             return (
               <tr key={pool.id}>
                 <td className="tabular-nums val-muted">{i + 1}</td>
-                <td className="pools-table__coin">{pool.stablecoin ?? pool.name.split('/')[1]?.trim()}</td>
+                <td className="pools-table__coin">
+                  <span className="pools-table__coin-cell">
+                    <TokenLogo
+                      symbol={pool.stablecoin ?? pool.name.split('/')[1]?.trim() ?? pool.id}
+                      poolId={pool.id}
+                      fallbackInitials={pool.partnerInitials}
+                      fallbackColor={pool.partnerColor}
+                      size="xs"
+                    />
+                    {pool.stablecoin ?? pool.name.split('/')[1]?.trim()}
+                  </span>
+                </td>
                 <td>{pool.partner}</td>
-                <td className="tabular-nums">{fmtUsd(pool.tvl)}</td>
+                <td className="tabular-nums">{formatUsd(pool.tvl)}</td>
                 <td className="tabular-nums val-muted">{share.toFixed(1)}%</td>
-                <td className="tabular-nums">{fmtUsd(pool.pegKeeperDebt)}</td>
-                <td className="tabular-nums">{fmtUsd(pool.volume24h)}</td>
+                <td className="tabular-nums">{formatUsd(pool.pegKeeperDebt)}</td>
+                <td className="tabular-nums">{formatUsd(pool.volume24h)}</td>
                 <td>
                   <span className={`pill pill--${pool.status.toLowerCase()}`}>{pool.status}</span>
                 </td>

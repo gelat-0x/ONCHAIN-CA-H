@@ -1,171 +1,143 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { PoolData } from '../types';
-
-function fmtUsd(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1e6).toFixed(2)}M`;
-  if (n >= 1000) return `$${(n / 1e3).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
-}
+import { formatUsd } from '../lib/formatUsd';
+import { formatSinceDate } from '../lib/formatSince';
+import { formatPoolApr } from '../lib/poolChartColor';
+import { pegKeeperDisplayApr } from '../lib/pegKeeperApr';
+import { HubBackdrop } from './HubBackdrop';
+import { HubShareRing } from './HubShareRing';
+import { TokenLogo } from './TokenLogo';
+import { OrbitWheel } from './OrbitWheel';
+import { PegKeeperFeedModal } from './PegKeeperFeedModal';
 
 interface FrxUsdHubProps {
   pools: PoolData[];
   selectedId?: string;
   onSelect?: (pool: PoolData) => void;
+  onViewPools?: () => void;
   frxUsdPrice?: number;
 }
 
-export function FrxUsdHub({ pools, selectedId, onSelect, frxUsdPrice }: FrxUsdHubProps) {
-  const totalTvl = useMemo(() => pools.reduce((s, p) => s + p.tvl, 0), [pools]);
-  const totalDebt = useMemo(() => pools.reduce((s, p) => s + p.pegKeeperDebt, 0), [pools]);
+export function FrxUsdHub({ pools, selectedId, onSelect, onViewPools }: FrxUsdHubProps) {
+  const [feedOpen, setFeedOpen] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
 
-  const nodes = useMemo(() => {
-    const maxTvl = Math.max(...pools.map((p) => p.tvl), 1);
-    return pools.map((pool, i) => {
-      const angle = (i / pools.length) * Math.PI * 2 - Math.PI / 2;
-      const radius = 34;
-      const x = 50 + Math.cos(angle) * radius;
-      const y = 50 + Math.sin(angle) * radius;
-      const share = totalTvl > 0 ? (pool.tvl / totalTvl) * 100 : 0;
-      const r = 2.2 + (pool.tvl / maxTvl) * 4.5;
-      return { pool, x, y, r, share, angle };
-    });
-  }, [pools, totalTvl]);
+  const totalTvl = useMemo(() => pools.reduce((s, p) => s + p.tvl, 0), [pools]);
+  const totalFrxUsd = useMemo(
+    () => pools.reduce((s, p) => s + (p.frxUsdBalanceUsd ?? 0), 0),
+    [pools],
+  );
 
   const selected = pools.find((p) => p.id === selectedId) ?? pools[0] ?? null;
+  const selectedShare = selected?.frxUsdSharePct ?? 0;
+  const selectedApr = selected ? pegKeeperDisplayApr(selected) : 0;
+  const selectedSym = selected
+    ? (selected.stablecoin ?? selected.name.split('/')[1]?.trim() ?? selected.id)
+    : '';
 
   return (
     <div className="frx-hub">
       <div className="frx-hub__head">
         <div>
-          <div className="frx-hub__eyebrow">PegKeeper reserve hub</div>
-          <h3 className="frx-hub__title">frxUSD</h3>
+          <div className="frx-hub__eyebrow">frxUSD PegKeeper family</div>
+          <h3 className="frx-hub__title">Partner orbit</h3>
         </div>
-        <div className="frx-hub__peg tabular-nums">
-          {frxUsdPrice != null ? `$${frxUsdPrice.toFixed(4)}` : '—'}
-          <span className="frx-hub__peg-label">peg</span>
+        <div className="frx-hub__head-stats">
+          <div className="frx-hub__head-meta">
+            <span><strong>{pools.length}</strong> pools</span>
+            <span><strong>{formatUsd(totalTvl)}</strong> TVL</span>
+            <span><strong>{formatUsd(totalFrxUsd)}</strong> frxUSD in pools</span>
+          </div>
         </div>
       </div>
 
-      <div className="frx-hub__viz" aria-label="frxUSD PegKeeper partner pools">
-        <svg viewBox="0 0 100 100" className="frx-hub__svg" role="img">
-          <circle cx="50" cy="50" r="34" fill="none" stroke="var(--border)" strokeWidth="0.4" strokeDasharray="1.5 2" />
-          <circle cx="50" cy="50" r="22" fill="none" stroke="var(--border)" strokeWidth="0.25" opacity="0.5" />
-
-          {nodes.map(({ pool, x, y, r, share }) => {
-            const active = pool.id === selected?.id;
-            return (
-              <g key={pool.id}>
-                <line
-                  x1="50"
-                  y1="50"
-                  x2={x}
-                  y2={y}
-                  stroke={active ? 'var(--foreground)' : 'var(--primary-600)'}
-                  strokeWidth={active ? 0.35 : 0.2}
-                  opacity={active ? 0.9 : 0.45}
-                />
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={r}
-                  fill={active ? 'var(--foreground)' : 'var(--primary-700)'}
-                  stroke={active ? 'var(--foreground)' : pool.partnerColor}
-                  strokeWidth={active ? 0.5 : 0.35}
-                  className="frx-hub__node"
-                  onClick={() => onSelect?.(pool)}
-                  style={{ cursor: 'pointer' }}
-                />
-                {share >= 4 && (
-                  <text
-                    x={x}
-                    y={y - r - 1.8}
-                    textAnchor="middle"
-                    className="frx-hub__node-label"
-                    fill={active ? 'var(--foreground)' : 'var(--primary-300)'}
-                    fontSize="2.8"
-                  >
-                    {pool.stablecoin ?? pool.name.split('/')[1]?.trim()}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          <circle cx="50" cy="50" r="7" fill="var(--surface-2)" stroke="var(--foreground)" strokeWidth="0.5" />
-          <text x="50" y="51.5" textAnchor="middle" fill="var(--foreground)" fontSize="3.2" fontWeight="700">
-            frxUSD
-          </text>
-        </svg>
-
-        <div className="frx-hub__legend">
-          <span><strong>{pools.length}</strong> partner pools</span>
-          <span><strong>{fmtUsd(totalTvl)}</strong> combined TVL</span>
-          <span><strong>{fmtUsd(totalDebt)}</strong> frxUSD debt</span>
-        </div>
+      <div ref={stageRef} className="frx-hub__stage">
+        <HubBackdrop />
+        <OrbitWheel
+          pools={pools}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          mode="arc"
+          className="frx-hub__wheel"
+          captureRef={stageRef}
+        />
       </div>
 
       {selected && (
-        <div className="frx-hub__detail">
-          <div className="frx-hub__detail-top">
-            <div>
-              <div className="frx-hub__detail-pair">{selected.name}</div>
-              <div className="frx-hub__detail-partner">{selected.partner}</div>
+        <article className="frx-hub__detail">
+          <div className="frx-hub__detail-main">
+            <div className="frx-hub__detail-metrics">
+              <div className="frx-hub__metric">
+                <span className="metric-label">TVL</span>
+                <span className="metric-value tabular-nums">{formatUsd(selected.tvl)}</span>
+              </div>
+              <div className="frx-hub__metric">
+                <span className="metric-label">VOL</span>
+                <span className="metric-value tabular-nums">{formatUsd(selected.volume24h)}</span>
+              </div>
+              <div className="frx-hub__metric">
+                <span className="metric-label">APR</span>
+                <span className="metric-value tabular-nums">
+                  {selectedApr > 0 ? formatPoolApr(selectedApr) : '—'}
+                </span>
+              </div>
+              <div className="frx-hub__metric">
+                <span className="metric-label">SINCE</span>
+                <span className="metric-value tabular-nums">{formatSinceDate(selected.since)}</span>
+              </div>
             </div>
-            <span className={`pill pill--${selected.status.toLowerCase()}`}>{selected.status}</span>
+
+            <div className="frx-hub__detail-aside">
+              <div className="frx-hub__detail-share">
+                <HubShareRing percent={selectedShare} accent={selected.partnerColor} />
+                <div className="frx-hub__detail-share-text">
+                  <span className="frx-hub__detail-share-pct tabular-nums">
+                    {selectedShare > 0 ? `${selectedShare.toFixed(1)}%` : '—'}
+                  </span>
+                  <span className="frx-hub__detail-share-label">frxUSD share of pool</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="frx-hub__detail-identity"
+                onClick={() => setFeedOpen(true)}
+                aria-label={`Read all PegKeepers, currently ${selectedSym}`}
+              >
+                <TokenLogo
+                  symbol={selectedSym}
+                  poolId={selected.id}
+                  fallbackInitials={selected.partnerInitials}
+                  fallbackColor={selected.partnerColor}
+                  size="sm"
+                  className="frx-hub__detail-identity-logo"
+                />
+                <div className="frx-hub__detail-info">
+                  <span className="frx-hub__detail-token">{selectedSym}</span>
+                  <span className="frx-hub__detail-partner">{selected.partner}</span>
+                  <p className="frx-hub__detail-desc">{selected.description}</p>
+                </div>
+              </button>
+            </div>
           </div>
-          <div className="frx-hub__detail-grid">
-            <div>
-              <span className="metric-label">Pool TVL</span>
-              <span className="metric-value tabular-nums">{fmtUsd(selected.tvl)}</span>
-              <span className="frx-hub__share tabular-nums">
-                {totalTvl > 0 ? `${((selected.tvl / totalTvl) * 100).toFixed(1)}% of hub` : '—'}
-              </span>
+
+          {onViewPools && (
+            <div className="frx-hub__detail-actions frx-hub__detail-actions--single">
+              <button type="button" className="btn-primary btn-ghost-sm" onClick={onViewPools}>
+                View pools
+              </button>
             </div>
-            <div>
-              <span className="metric-label">frxUSD PegKeeper debt</span>
-              <span className="metric-value tabular-nums">{fmtUsd(selected.pegKeeperDebt)}</span>
-            </div>
-            <div>
-              <span className="metric-label">24h volume</span>
-              <span className="metric-value tabular-nums">{fmtUsd(selected.volume24h)}</span>
-            </div>
-            <div>
-              <span className="metric-label">Live since</span>
-              <span className="metric-value">{selected.since ?? '—'}</span>
-            </div>
-          </div>
-          {selected.description && (
-            <p className="frx-hub__detail-desc">{selected.description}</p>
           )}
-          <a
-            href={selected.curveUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-ghost btn-ghost-sm frx-hub__curve-link"
-          >
-            View on Curve ↗
-          </a>
-        </div>
+        </article>
       )}
 
-      <div className="frx-hub__pool-list">
-        {pools.slice(0, 8).map((pool) => {
-          const active = pool.id === selected?.id;
-          const share = totalTvl > 0 ? (pool.tvl / totalTvl) * 100 : 0;
-          return (
-            <button
-              key={pool.id}
-              type="button"
-              className={`frx-hub__pool-chip ${active ? 'frx-hub__pool-chip--active' : ''}`}
-              onClick={() => onSelect?.(pool)}
-            >
-              <span className="frx-hub__chip-name">{pool.stablecoin ?? pool.name.split('/')[1]?.trim()}</span>
-              <span className="frx-hub__chip-tvl tabular-nums">{fmtUsd(pool.tvl)}</span>
-              <span className="frx-hub__chip-share tabular-nums">{share.toFixed(0)}%</span>
-            </button>
-          );
-        })}
-      </div>
+      {feedOpen && (
+        <PegKeeperFeedModal
+          pools={pools}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onClose={() => setFeedOpen(false)}
+        />
+      )}
     </div>
   );
 }

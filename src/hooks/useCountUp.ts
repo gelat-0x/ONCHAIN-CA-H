@@ -8,6 +8,8 @@ interface UseCountUpOptions {
   prefix?: string;
   suffix?: string;
   start?: boolean;
+  /** Custom renderer for each frame — lets callers reuse compact USD formatting. */
+  formattingFn?: (value: number) => string;
 }
 
 export function useCountUp({
@@ -17,6 +19,7 @@ export function useCountUp({
   prefix = '',
   suffix = '',
   start = true,
+  formattingFn,
 }: UseCountUpOptions) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -29,6 +32,7 @@ export function useCountUp({
       prefix,
       suffix,
       useGrouping: true,
+      ...(formattingFn ? { formattingFn } : {}),
     });
 
     if (!countUp.error) {

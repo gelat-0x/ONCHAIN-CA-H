@@ -53,7 +53,7 @@ export function PoolConstellation({ pools, onSelect, selectedId }: PoolConstella
               borderColor: pool.partnerColor,
             }}
             onClick={() => onSelect?.(pool)}
-            title={`${pool.name} — $${(pool.tvl / 1e6).toFixed(2)}M`}
+            title={`${pool.name}, $${(pool.tvl / 1e6).toFixed(2)}M`}
           >
             <span className="constellation-label">{pool.stablecoin ?? pool.name.split('/')[1]?.trim()}</span>
           </button>

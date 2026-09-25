@@ -1,154 +1,97 @@
 import { useEffect, useState } from 'react';
-import type { DashboardData, PoolData } from '../types';
+import type { DashboardData } from '../types';
 import { fetchDashboardData } from '../services/api';
 import { PLACEHOLDER_DASHBOARD } from '../data/placeholders';
-import { POOL_REGISTRY } from '../data/poolRegistry';
 import { LiveTicker } from '../components/LiveTicker';
 import { Header } from '../components/Header';
+import { HeroBackdrop } from '../components/HeroBackdrop';
+import { HeroBull } from '../components/HeroBull';
+import { HeroEntrySwitch } from '../components/HeroEntrySwitch';
+import { HomeSurfaces } from '../components/HomeSurfaces';
+import { HomeThesis } from '../components/HomeThesis';
+import { FraxForceSection } from '../components/FraxForceSection';
 import { Footer } from '../components/Footer';
-import { SectionDivider } from '../components/SectionDivider';
-import { FrxUsdHub } from '../components/FrxUsdHub';
-import { PoolsTable } from '../components/PoolsTable';
-import { AggregateStats } from '../components/AggregateStats';
-import { PegDeviationChart } from '../components/charts/PegDeviationChart';
-import { FrxUsdCard, ShowSection, MobileWatchCta } from '../components/ShowSection';
-import { CountUpNumber } from '../components/CountUpNumber';
-import { Logo } from '../components/Logo';
+import { HomeSectionRail } from '../components/HomeSectionRail';
+import { useHomeBlockScroll } from '../hooks/useHomeBlockScroll';
+
+const SECTIONS = [
+  { id: 'home-intro', label: 'Start', snap: true },
+  { id: 'home-surfaces', label: 'Surfaces', snap: true },
+  { id: 'home-thesis', label: 'Thesis', snap: true },
+  { id: 'home-frax-force', label: 'Frax Force', snap: true },
+];
+
+function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
-  const [selectedPool, setSelectedPool] = useState<PoolData | null>(null);
 
   useEffect(() => {
-    fetchDashboardData().then((d) => {
-      setData(d);
-      setSelectedPool(d.pools[0] ?? null);
-    });
+    fetchDashboardData().then(setData);
   }, []);
 
-  const ticker = data?.ticker ?? PLACEHOLDER_DASHBOARD.ticker;
+  const { active, jumpTo } = useHomeBlockScroll(SECTIONS, true);
+  const railSections = SECTIONS.filter((section) => section.snap);
+  const railActiveIdx = railSections.findIndex((section) => section.id === SECTIONS[active]?.id);
+  const railActive = railActiveIdx >= 0 ? railActiveIdx : Math.max(0, railSections.length - 1);
+  const jumpRail = (railIdx: number) => {
+    const id = railSections[railIdx]?.id;
+    const fullIdx = SECTIONS.findIndex((section) => section.id === id);
+    if (fullIdx >= 0) jumpTo(fullIdx);
+  };
+
+  const ticker = data?.ticker?.length ? data.ticker : PLACEHOLDER_DASHBOARD.ticker;
 
   return (
     <>
       <LiveTicker items={ticker} />
       <Header />
-      <MobileWatchCta />
+      <HomeSectionRail sections={railSections} active={railActive} onJump={jumpRail} />
 
-      {!data ? (
-        <div className="page-pad loading-screen">
-          <div className="loader-ring" />
-          <span className="loader-text">Loading PegKeeper intelligence…</span>
+      <section className="hero-public home-block" id="home-intro">
+        <HeroBackdrop />
+        <div className="hero-public__layout">
+          <div className="hero-public__inner">
+            <p className="hero-public__eyebrow">Built by Frax Force as a public good</p>
+            <h1 className="hero-public__title">
+              <span className="hero-public__onchain">ONCHAIN</span>{' '}
+              <span className="hero-public__cash">CA$H</span>
+            </h1>
+            <p className="hero-public__desc">
+              There&apos;s a lot happening onchain if you want the bigger picture. We built
+              ONCHAIN CA$H to bring innovation, education, and culture onto one surface.
+            </p>
+
+            <HeroEntrySwitch />
+          </div>
+
+          <HeroBull data={data} />
         </div>
-      ) : (
-        <>
-          {/* CINEMATIC HERO */}
-          <section className="hero-brutal" id="dashboard">
-            <div className="hero-brutal__content">
-              <div className="hero-cinema__left">
-                <div className="hero-tag">
-                  <span className="live-dot" /> LIVE · {data.partnerCount} POOLS
-                </div>
-                <Logo size="lg" />
-                <p className="hero-cinema__sub">frxUSD PegKeeper intelligence on Curve.</p>
-                <p className="hero-cinema__desc">
-                  Reserve yield from frxUSD backing flows back into LP incentives across partner stablecoin pools.
-                  Track TVL, PegKeeper debt, and peg health in one terminal.
-                </p>
 
-                <div className="hero-cinema__actions">
-                  <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="btn-primary">
-                    Watch Episode
-                  </a>
-                  <a href="/charts" className="btn-ghost">Live Charts →</a>
-                  <a href="#pools" className="btn-ghost">Enter Terminal ↓</a>
-                </div>
+        <button
+          type="button"
+          className="home-scroll-get-in"
+          onClick={() => scrollToId('home-surfaces')}
+          aria-label="Scroll to get in"
+        >
+          <span>Scroll to get in</span>
+        </button>
+      </section>
 
-                <div className="hero-stats-row">
-                  <div className="hero-stat">
-                    <span className="hero-stat__val val-highlight tabular-nums">
-                      <CountUpNumber end={Math.round(data.totalTvl / 1e6)} prefix="$" suffix="M" decimals={1} />
-                    </span>
-                    <span className="hero-stat__label">PegKeeper TVL</span>
-                  </div>
-                  <div className="hero-stat-divider" />
-                  <div className="hero-stat">
-                    <span className="hero-stat__val tabular-nums">
-                      <CountUpNumber end={data.partnerCount} />
-                    </span>
-                    <span className="hero-stat__label">Partner pools</span>
-                  </div>
-                  <div className="hero-stat-divider" />
-                  <div className="hero-stat">
-                    <span className="hero-stat__val tabular-nums">
-                      $<CountUpNumber end={data.frxUsdPrice} decimals={4} />
-                    </span>
-                    <span className="hero-stat__label">frxUSD Peg</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hero-cinema__right">
-                <div className="brutal-card brutal-card--hub">
-                  <FrxUsdHub
-                    pools={data.pools}
-                    selectedId={selectedPool?.id}
-                    onSelect={setSelectedPool}
-                    frxUsdPrice={data.frxUsdPrice}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="section section--stats">
-            <AggregateStats
-              totalTvl={data.totalTvl}
-              totalVolume24h={data.totalVolume24h}
-              activePools={data.activePools}
-              partnerCount={data.partnerCount}
-            />
-          </section>
-
-          <SectionDivider name="PEGKEEPER POOLS" />
-
-          <section className="section" id="pools">
-            <div className="section-head">
-              <div>
-                <div className="section-eyebrow"><span className="hash">#</span> FRXUSD HUB</div>
-                <h2 className="section-title">{POOL_REGISTRY.length} partner stablecoin pools</h2>
-                <p className="section-body section-body--inline">
-                  Each pool pairs frxUSD with a partner stablecoin on Curve. PegKeeper debt shows how much frxUSD backs each market.
-                </p>
-              </div>
-              <a
-                href="https://dune.com/stablescarab/frax-frxusd-pegkeeper-pools"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-ghost btn-ghost-sm"
-              >
-                Dune Analytics ↗
-              </a>
-            </div>
-
-            <PoolsTable pools={data.pools} totalTvl={data.totalTvl} />
-
-            <PegDeviationChart data={data.pegHistory90d} />
-          </section>
-
-          <SectionDivider name="ONCHAIN CA$H LIVE" />
-
-          <section className="section" id="show">
-            <ShowSection />
-          </section>
-
-          <SectionDivider name="FRXUSD" />
-
-          <section className="section">
-            <FrxUsdCard chainDistribution={data.chainDistribution} cached={data.cached} />
-          </section>
-
-          <Footer />
-        </>
-      )}
+      <HomeSurfaces
+        totalTvl={data?.totalTvl}
+        activePools={data?.activePools}
+        poolCount={data?.pools.length}
+        totalVolume24h={data?.totalVolume24h}
+        partnerCount={data?.partnerCount}
+      />
+      <HomeThesis />
+      <FraxForceSection />
+      <div className="home-footer-zone" id="home-footer">
+        <Footer deferUntilVisible />
+      </div>
     </>
   );
 }

@@ -3,10 +3,72 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" as="image" href="/frax-logo-loader.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Cultish crypto envoirement for everyone" />
+    <meta property="og:title" content="ONCHAIN CA$H" />
+    <meta property="og:description" content="Cultish crypto envoirement for everyone" />
+    <meta property="og:url" content="https://onchaincash.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ONCHAIN CA$H" />
+    <meta property="og:image" content="https://onchaincash.app/og-preview.jpg" />
+    <meta property="og:image:alt" content="ONCHAIN CA$H — Cultish Hub preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ONCHAIN CA$H" />
+    <meta name="twitter:description" content="Cultish crypto envoirement for everyone" />
+    <meta name="twitter:image" content="https://onchaincash.app/og-preview.jpg" />
     <title>ONCHAIN CA$H — PegKeeper Intelligence Hub</title>
+    <style>
+      html, body { margin: 0; background: #0a0a0c; color: #fff; }
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: grid;
+        place-content: center;
+        gap: 16px;
+        background: #0a0a0c;
+        font-family: system-ui, sans-serif;
+      }
+      #boot-splash[hidden] { display: none !important; }
+      #boot-splash img {
+        width: 88px;
+        height: 88px;
+        object-fit: contain;
+        animation: boot-spin 1.35s linear infinite;
+        filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.12));
+      }
+      #boot-splash span {
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        color: #737373;
+        text-align: center;
+      }
+      @keyframes boot-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash img { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <script>
+      try {
+        var p = JSON.parse(localStorage.getItem('onchain-ui-prefs-v2') || '{}');
+        document.documentElement.dataset.priceChecker = p.priceChecker === true ? 'on' : 'off';
+        document.documentElement.dataset.onchainRadio = p.onchainRadio === true ? 'on' : 'off';
+      } catch (e) {
+        document.documentElement.dataset.priceChecker = 'off';
+        document.documentElement.dataset.onchainRadio = 'off';
+      }
+    </script>
+    <div id="boot-splash" role="status" aria-live="polite" aria-busy="true">
+      <img src="/frax-logo-loader.png" alt="" width="88" height="88" />
+      <span>Loading ONCHAIN CA$H…</span>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

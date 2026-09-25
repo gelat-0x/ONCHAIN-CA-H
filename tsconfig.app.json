@@ -17,7 +17,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "@learn/*": ["./src/learn/*"]
     }
   },
   "include": ["src", "shared"]

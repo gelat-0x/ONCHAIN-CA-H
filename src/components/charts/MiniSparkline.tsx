@@ -1,65 +1,68 @@
-import { useEffect, useRef } from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+import { TimeSeriesChart } from './TimeSeriesChart';
+import type { ChartPoint } from './timeSeriesSetup';
 
 interface MiniSparklineProps {
   data: number[];
+  series?: Array<{ ts: number; value: number }>;
   height?: number;
-  animate?: boolean;
   color?: string;
+  theme?: 'card' | 'terminal' | 'embedded';
 }
 
-export function MiniSparkline({ data, height = 40, animate = true, color = '#FFFFFF' }: MiniSparklineProps) {
-  const chartRef = useRef<ChartJS<'line'>>(null);
+function autoYRange(points: ChartPoint[]): { yMin?: number; yMax?: number } {
+  const values = points.map((p) => p.value).filter((v) => Number.isFinite(v));
+  if (values.length < 2) return {};
 
-  useEffect(() => {
-    if (!animate || !chartRef.current) return;
-    const chart = chartRef.current;
-    chart.update('active');
-  }, [animate, data]);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  const pad = Math.max(range * 0.14, max * 0.025, 1);
 
-  const chartData = {
-    labels: data.map((_, i) => i),
-    datasets: [
-      {
-        data,
-        borderColor: color,
-        borderWidth: 1.5,
-        pointRadius: 0,
-        fill: {
-          target: 'origin',
-          above: `${color}14`,
-        },
-        tension: 0.4,
-      },
-    ],
-  };
+  return { yMin: min - pad, yMax: max + pad };
+}
 
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 1500 },
-    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-    scales: {
-      x: { display: false },
-      y: { display: false, min: Math.min(...data) - 0.001, max: Math.max(...data) + 0.001 },
-    },
-  };
+/** Compact TVL sparkline for pool cards — always visible, dark-integrated. */
+export function MiniSparkline({
+  data,
+  series,
+  height = 48,
+  color,
+  theme = 'embedded',
+}: MiniSparklineProps) {
+  const values = data.length ? data : [0];
+  const now = Date.now();
+  const points: ChartPoint[] = series?.length
+    ? series.map((p) => ({ ts: p.ts, value: p.value }))
+    : values.map((value, i) => ({
+        ts: now - (values.length - 1 - i) * 86400000,
+        value,
+      }));
+
+  const { yMin, yMax } = autoYRange(points);
+  const lineColor = color ?? 'rgba(255,255,255,0.86)';
 
   return (
-    <div style={{ height }}>
-      <Line ref={chartRef} data={chartData} options={options} />
-    </div>
+    <TimeSeriesChart
+      series={[
+        {
+          id: 'spark',
+          label: 'TVL',
+          color: lineColor,
+          data: points,
+          fill: true,
+        },
+      ]}
+      height={height}
+      theme={theme}
+      yMin={yMin}
+      yMax={yMax}
+      showXAxis={false}
+      showYAxis={false}
+      showTooltip={false}
+      animate={false}
+      timeUnit="day"
+      formatValue={() => ''}
+      className="mini-sparkline"
+    />
   );
 }

@@ -8,11 +8,20 @@ export interface TokenDef {
   type: TokenType;
   color: string;
   description: string;
-  /** For stablecoins — show peg band on charts */
+  /** Logo filename key when different from symbol (e.g. FRAX not FXS). */
+  logoSymbol?: string;
+  /** Explicit asset filename in src/assets/tokens/ (without extension). */
+  logoAsset?: string;
+  /** Human CoinGecko URL slug (may differ from API id). */
+  coingeckoPageSlug?: string;
   pegTarget?: number;
 }
 
-/** Canonical watchlist — live prices via CoinGecko */
+/**
+ * Chart + ticker watchlist.
+ * - frxUSD = Frax stablecoin (CoinGecko API: frax-usd)
+ * - FRAX = Frax ecosystem token (CoinGecko page: /coins/frax — API id: frax-share, formerly FXS)
+ */
 export const WATCHLIST_TOKENS: TokenDef[] = [
   {
     id: 'frxusd',
@@ -20,46 +29,48 @@ export const WATCHLIST_TOKENS: TokenDef[] = [
     name: 'Frax USD',
     coingeckoId: 'frax-usd',
     type: 'stablecoin',
-    color: '#FFFFFF',
+    color: '#ffffff',
+    description: 'Frax stablecoin pegged to $1 — PegKeeper base asset.',
     pegTarget: 1,
-    description: 'Fully-collateralized Frax stablecoin. The peg asset for all PegKeeper pools.',
   },
   {
     id: 'frax',
     symbol: 'FRAX',
-    name: 'Frax Ecosystem',
-    coingeckoId: 'frax',
-    type: 'volatile',
-    color: '#ffffff',
-    description: 'Frax ecosystem token — volatile governance asset, not the stablecoin.',
-  },
-  {
-    id: 'fxs',
-    symbol: 'FXS',
-    name: 'Frax Shares',
+    name: 'Frax',
     coingeckoId: 'frax-share',
+    coingeckoPageSlug: 'frax',
     type: 'governance',
-    color: '#A3A3A3',
-    description: 'Frax governance & revenue share token.',
+    color: '#ffffff',
+    logoSymbol: 'FRAX',
+    description: 'Frax ecosystem / governance token (CoinGecko: frax, API id frax-share).',
   },
   {
-    id: 'aave',
-    symbol: 'AAVE',
-    name: 'Aave',
-    coingeckoId: 'aave',
+    id: 'btc',
+    symbol: 'BTC',
+    name: 'Bitcoin',
+    coingeckoId: 'bitcoin',
     type: 'volatile',
-    color: '#b6509e',
-    description: 'Leading DeFi lending protocol — PegKeeper partner ecosystem.',
+    color: '#f7931a',
+    description: 'Macro benchmark for crypto markets.',
   },
   {
-    id: 'gho',
-    symbol: 'GHO',
-    name: 'GHO',
-    coingeckoId: 'gho',
-    type: 'stablecoin',
-    color: '#6c5ce7',
-    pegTarget: 1,
-    description: 'Aave-native decentralized stablecoin.',
+    id: 'eth',
+    symbol: 'ETH',
+    name: 'Ethereum',
+    coingeckoId: 'ethereum',
+    type: 'volatile',
+    color: '#627eea',
+    description: 'Base layer where PegKeeper pools live.',
+  },
+  {
+    id: 'sol',
+    symbol: 'SOL',
+    name: 'Solana',
+    coingeckoId: 'solana',
+    type: 'volatile',
+    color: '#9945ff',
+    logoAsset: 'SOL',
+    description: 'High-throughput L1 benchmark.',
   },
   {
     id: 'crv',
@@ -68,7 +79,8 @@ export const WATCHLIST_TOKENS: TokenDef[] = [
     coingeckoId: 'curve-dao-token',
     type: 'volatile',
     color: '#ff6b35',
-    description: 'Curve governance token — all PegKeeper pools live on Curve.',
+    logoAsset: 'CRV',
+    description: 'Curve governance — home of every PegKeeper pool.',
   },
   {
     id: 'cvx',
@@ -77,7 +89,17 @@ export const WATCHLIST_TOKENS: TokenDef[] = [
     coingeckoId: 'convex-finance',
     type: 'volatile',
     color: '#3d5afe',
-    description: 'Convex boosts Curve LP yields across PegKeeper pools.',
+    logoAsset: 'CVX',
+    description: 'Boosted Curve LP yields across the PegKeeper mesh.',
+  },
+  {
+    id: 'aave',
+    symbol: 'AAVE',
+    name: 'Aave',
+    coingeckoId: 'aave',
+    type: 'volatile',
+    color: '#b6509e',
+    description: 'DeFi lending giant in the PegKeeper orbit.',
   },
   {
     id: 'fxn',
@@ -86,26 +108,25 @@ export const WATCHLIST_TOKENS: TokenDef[] = [
     coingeckoId: 'f-x-protocol',
     type: 'volatile',
     color: '#4ecdc4',
-    description: 'f(x) Protocol governance — veFXN revenue & emissions.',
-  },
-  {
-    id: 'crvusd',
-    symbol: 'crvUSD',
-    name: 'Curve USD',
-    coingeckoId: 'crvusd',
-    type: 'stablecoin',
-    color: '#D4D4D4',
-    pegTarget: 1,
-    description: 'Curve-native stablecoin — largest PegKeeper partner pool.',
+    description: 'f(x) Protocol governance token.',
   },
 ];
 
-export const COINGECKO_IDS = WATCHLIST_TOKENS.map((t) => t.coingeckoId);
+/** Volatile/governance tokens for the price ticker (no stablecoins). */
+export const TICKER_TOKENS = WATCHLIST_TOKENS.filter((t) => t.type !== 'stablecoin');
+
+export const COINGECKO_IDS = [...new Set(WATCHLIST_TOKENS.map((t) => t.coingeckoId))];
 
 export function tokenById(id: string): TokenDef | undefined {
-  return WATCHLIST_TOKENS.find((t) => t.id === id || t.coingeckoId === id || t.symbol.toLowerCase() === id.toLowerCase());
+  return WATCHLIST_TOKENS.find(
+    (t) => t.id === id || t.coingeckoId === id || t.symbol.toLowerCase() === id.toLowerCase(),
+  );
 }
 
 export function tokenByCoingeckoId(cgId: string): TokenDef | undefined {
   return WATCHLIST_TOKENS.find((t) => t.coingeckoId === cgId);
+}
+
+export function tokenBySymbol(symbol: string): TokenDef | undefined {
+  return WATCHLIST_TOKENS.find((t) => t.symbol.toLowerCase() === symbol.toLowerCase());
 }

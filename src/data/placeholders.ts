@@ -40,9 +40,10 @@ export const PLACEHOLDER_DASHBOARD: DashboardData = {
   partnerCount: POOL_REGISTRY.length,
   marketCap: 123_000_000,
   ticker: [
-    { symbol: 'frxUSD', price: 1.0001, change: 'flat', type: 'stablecoin' },
-    { symbol: 'FRAX', price: 2.45, change: 'down', change24h: -1.2, type: 'volatile' },
-    { symbol: 'TVL', price: DUNE_BASELINE.totalPoolTvl, change: 'up', type: 'metric' },
+    { symbol: 'BTC', price: 98500, change: 'up', change24h: 1.2, type: 'volatile' },
+    { symbol: 'ETH', price: 3450, change: 'up', change24h: 0.8, type: 'volatile' },
+    { symbol: 'CRV', price: 0.42, change: 'up', change24h: 2.1, type: 'volatile' },
+    { symbol: 'CVX', price: 3.2, change: 'down', change24h: -0.5, type: 'volatile' },
   ],
   cached: true,
   dataSource: DUNE_BASELINE.source,

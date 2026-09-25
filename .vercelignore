@@ -1,0 +1,12 @@
+node_modules
+.git
+.DS_Store
+.tmp
+.tmp-tsx
+dist
+*.log
+.env
+.env.*
+!.env.example
+docs/pool-analytics
+data/generated

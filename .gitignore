@@ -9,6 +9,7 @@ node_modules/
 # Build
 dist/
 build/
+api/index.js
 *.log
 
 # OS
@@ -28,3 +29,10 @@ data/generated/
 docs/pool-analytics/RANKING.md
 docs/pool-analytics/*-report.md
 *.lifecycle.json
+public/backgrounds/hub/0701.mp4
+public/videos/pegkeeper-background.mov
+
+# Local compile caches
+.tmp-tsx/
+.vercel
+.env*

@@ -4,8 +4,18 @@ import './fonts.css';
 import './index.css';
 import App from './App';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+const root = document.getElementById('root');
+if (root) {
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+// Drop the HTML boot splash once React has painted.
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    document.getElementById('boot-splash')?.setAttribute('hidden', '');
+  });
+});

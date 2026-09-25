@@ -1,40 +1,44 @@
 /**
  * Dune Analytics service for frxUSD PegKeeper pools.
  *
- * v1 strategy: Scheduled query in Dune + backend fetches /results only.
- * Dune is used as an ENHANCEMENT, mainly for accurate frxUSD balance (exposed as frxUsdBalanceUsd).
- *
- * Matching: STRICT address-only using curvePoolAddress from registry.
- * No stablecoin fallback (disabled for v1 until more pools have validated addresses).
+ * Uses the public stablescarab dashboard query (pool overview table).
+ * Matching: curvePoolAddress (strict) → stablecoin symbol (registry id).
  */
 
 import { API_ENDPOINTS } from '../../shared/constants/apiEndpoints.ts';
 import { ENV, envOptional } from '../config/env.ts';
 import { fetchJson, type FetchOptions } from '../lib/http.ts';
+import { normSymbol } from '../lib/poolMatch.ts';
+import { normalizeUsd, normalizeWeiUsd, MAX_POOL_USD } from '../lib/sanitize.ts';
 import type { DunePegKeeperRow, DunePegKeeperResult } from '../../shared/types/index.ts';
-import type { PoolRegistryEntry } from '../../shared/data/poolRegistry.ts';
+import { POOL_REGISTRY, type PoolRegistryEntry } from '../../shared/data/poolRegistry.ts';
 
 const STALE_THRESHOLD_MS = 4 * 60 * 60 * 1000; // 4 hours
 
-/**
- * Robustly parses last_updated from Dune (handles ISO and Dune display format).
- */
-function parseLastUpdated(raw: any): string {
+function parseLastUpdated(raw: unknown): string {
   if (!raw) return new Date().toISOString();
-
   let str = String(raw).trim();
-
-  // Dune display format "2026-06-20 21:26:25" -> treat as UTC
   if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(str)) {
     str = str.replace(' ', 'T') + 'Z';
   }
-
   const date = new Date(str);
-  if (!isNaN(date.getTime())) {
-    return date.toISOString();
-  }
+  return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+}
 
-  return new Date().toISOString();
+/** Normalize Dune dashboard rows (supports overview + detail query shapes). */
+function mapDuneRow(r: Record<string, unknown>): DunePegKeeperRow {
+  return {
+    pool_address: String(r.pool_address ?? r.pool ?? '').toLowerCase().trim(),
+    pool_name: String(r.pool_name ?? r.name ?? ''),
+    stablecoin: String(r.stablecoin ?? ''),
+    total_tvl: normalizeUsd(r.total_tvl ?? r.tvl ?? r.pool_tvl) ?? 0,
+    frxusd_balance:
+      normalizeUsd(r.frxusd_balance ?? r.frxusd_tvl ?? r.frxusd_tvl_usd) ??
+      normalizeWeiUsd(r.frxusd_balance ?? r.frxusd_tvl, MAX_POOL_USD, 0) ??
+      0,
+    volume_24h: normalizeUsd(r.volume_24h ?? r.volume) ?? 0,
+    last_updated: parseLastUpdated(r.last_updated),
+  };
 }
 
 export function isDuneConfigured(): boolean {
@@ -53,7 +57,6 @@ export async function fetchDunePegKeeperData(): Promise<DunePegKeeperResult | nu
   }
 
   const url = `${API_ENDPOINTS.dune.base}/query/${queryId}/results`;
-
   const options: FetchOptions = {
     timeout: 30_000,
     headers: { 'x-dune-api-key': apiKey },
@@ -61,83 +64,68 @@ export async function fetchDunePegKeeperData(): Promise<DunePegKeeperResult | nu
 
   try {
     const response = await fetchJson<{
-      result?: { rows?: any[] };
-      execution_time?: number;
-      row_count?: number;
+      result?: { rows?: Record<string, unknown>[] };
     }>(url, options);
 
-    if (!response?.result?.rows) {
-      console.warn('[Dune] Query returned no result object');
-      return null;
-    }
-
-    const rawRows = response.result.rows;
-
-    if (!rawRows.length) {
+    const rawRows = response?.result?.rows;
+    if (!rawRows?.length) {
       console.warn('[Dune] Query returned no rows');
       return null;
     }
 
-    const rows: DunePegKeeperRow[] = rawRows.map((r: any) => ({
-      pool_address: String(r.pool_address ?? '').toLowerCase().trim(),
-      pool_name: String(r.pool_name ?? ''),
-      stablecoin: String(r.stablecoin ?? ''),
-      total_tvl: Number(r.total_tvl) || 0,
-      frxusd_balance: Number(r.frxusd_balance) || 0,
-      volume_24h: Number(r.volume_24h) || 0,
-      last_updated: parseLastUpdated(r.last_updated),
-    }));
+    const rows = rawRows.map(mapDuneRow);
+    const hasTimestamps = rows.some(r => r.last_updated && r.last_updated !== new Date(0).toISOString());
 
-    const latestTimestamp = rows
-      .map(r => new Date(r.last_updated).getTime())
-      .filter(t => !isNaN(t))
-      .sort((a, b) => b - a)[0];
+    const latestTimestamp = hasTimestamps
+      ? rows.map(r => new Date(r.last_updated).getTime()).filter(t => !isNaN(t)).sort((a, b) => b - a)[0]
+      : Date.now();
 
-    const lastUpdated = latestTimestamp ? new Date(latestTimestamp) : null;
-    const isStale = lastUpdated ? (Date.now() - lastUpdated.getTime()) > STALE_THRESHOLD_MS : true;
+    const lastUpdated = latestTimestamp ? new Date(latestTimestamp) : new Date();
+    const isStale = hasTimestamps
+      ? (Date.now() - lastUpdated.getTime()) > STALE_THRESHOLD_MS
+      : false;
 
-    if (isStale) {
-      console.warn('[Dune] Data is stale (last_updated > 4h ago)');
-    } else {
-      console.log(`[Dune] Fetched ${rows.length} rows, lastUpdated=${lastUpdated?.toISOString()}, isStale=${isStale}`);
-    }
+    console.log(`[Dune] Fetched ${rows.length} rows (query ${queryId}), stale=${isStale}`);
 
-    return {
-      rows,
-      lastUpdated,
-      isStale,
-      source: 'dune',
-    };
+    return { rows, lastUpdated, isStale, source: 'dune' };
   } catch (error) {
     console.error('[Dune] Fetch failed:', error);
     return null;
   }
 }
 
+function stablecoinMatch(row: DunePegKeeperRow, entry: PoolRegistryEntry): boolean {
+  if (!row.stablecoin) return false;
+  return normSymbol(row.stablecoin) === normSymbol(entry.stablecoin);
+}
+
 /**
- * Find Dune row — address-only matching for v1.
- *
- * Dune frxUSD balance data is ONLY applied to pools that have a
- * verified curvePoolAddress that exactly matches a row from the
- * scheduled Dune query.
- *
- * Stablecoin fallback is DISABLED for now.
+ * Match registry pool → Dune row.
+ * 1. curvePoolAddress (exact)
+ * 2. stablecoin symbol (overview table has no addresses)
  */
 export function findDuneRowForPool(
   duneResult: DunePegKeeperResult | null,
-  entry: PoolRegistryEntry
+  entry: PoolRegistryEntry,
 ): DunePegKeeperRow | null {
   if (!duneResult?.rows?.length) return null;
 
-  // Strict address-only match
   if (entry.curvePoolAddress) {
     const target = entry.curvePoolAddress.toLowerCase().trim();
-    const match = duneResult.rows.find(r =>
+    const byAddr = duneResult.rows.find(r =>
       (r.pool_address || '').toLowerCase().trim() === target
     );
-    if (match) return match;
+    if (byAddr) return byAddr;
   }
 
-  // No fallback whatsoever
-  return null;
+  const shared = POOL_REGISTRY.filter(
+    (e) => normSymbol(e.stablecoin) === normSymbol(entry.stablecoin),
+  ).length > 1;
+  if (shared) return null;
+
+  const bySymbol = duneResult.rows.filter(r => stablecoinMatch(r, entry));
+  if (!bySymbol.length) return null;
+
+  // Prefer highest TVL if duplicate stablecoin rows
+  return bySymbol.sort((a, b) => b.total_tvl - a.total_tvl)[0];
 }
