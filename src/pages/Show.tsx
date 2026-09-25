@@ -1,68 +1,125 @@
+import { useEffect, useState } from 'react';
 import { LiveTicker } from '../components/LiveTicker';
 import { Header } from '../components/Header';
+import { ShowSection } from '../components/ShowSection';
+import { EpisodeCarousel } from '../components/EpisodeCarousel';
+import { EpisodeDetailModal } from '../components/EpisodeDetailModal';
 import { Footer } from '../components/Footer';
-import { ShowSection, MobileWatchCta } from '../components/ShowSection';
-import { PLACEHOLDER_DASHBOARD } from '../data/placeholders';
-
-const EPISODES = [
-  { title: 'Episode 24 — PegKeeper Wars', date: 'Jun 14, 2026', duration: '1h 42m', desc: 'Deep dive into frxUSD PegKeeper mechanics and partner integrations.' },
-  { title: 'Episode 23 — The $500M Milestone', date: 'Jun 7, 2026', duration: '1h 38m', desc: 'frxUSD volume milestones and Chaos Labs PoR breakdown.' },
-  { title: 'Episode 22 — Sonic & Fraxtal Expansion', date: 'May 31, 2026', duration: '1h 55m', desc: 'Multi-chain frxUSD deployment and cross-chain liquidity.' },
-  { title: 'Episode 21 — Alpha Season', date: 'May 24, 2026', duration: '2h 01m', desc: 'Yield farming strategies and PegKeeper APR analysis.' },
-  { title: 'Episode 20 — FUD Watch Special', date: 'May 17, 2026', duration: '1h 28m', desc: 'Debunking stablecoin FUD and reserve transparency.' },
-  { title: 'Episode 19 — Curve Wars 2.0', date: 'May 10, 2026', duration: '1h 45m', desc: 'PegKeeper incentives and crvUSD integration deep dive.' },
-];
+import { ShowTopicSubmit } from '../components/ShowTopicSubmit';
+import { PageGate } from '../components/PageGate';
+import { fetchDashboardData, fetchShowData } from '../services/api';
+import type { ShowData, ShowEpisode, TickerItem } from '../types';
+import { ONCHAIN_CASH_SEGMENTS, ONCHAIN_CASH_SHOW } from '../../shared/data/showConfig';
 
 export function ShowPage() {
+  const [ticker, setTicker] = useState<TickerItem[]>([]);
+  const [show, setShow] = useState<ShowData | null>(null);
+  const [selectedEpisode, setSelectedEpisode] = useState<ShowEpisode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([fetchShowData(), fetchDashboardData()])
+      .then(([showData, dash]) => {
+        if (cancelled) return;
+        setShow(showData);
+        setTicker(dash.ticker ?? []);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!show) {
+    return <PageGate ready={false} message="Loading Show…" />;
+  }
+
+  const segments = show.segments?.length ? show.segments : ONCHAIN_CASH_SEGMENTS;
+
   return (
     <>
-      <LiveTicker items={PLACEHOLDER_DASHBOARD.ticker} />
+      <LiveTicker items={ticker} />
       <Header />
-      <MobileWatchCta />
 
-      <div style={{ paddingTop: 'calc(var(--ticker-height) + var(--nav-height) + 48px)' }}>
-        <section className="section">
-          <div className="section-title">
-            <span className="hash">#</span> SHOW ARCHIVE
-          </div>
-          <h1 className="section-heading">ONCHAIN CA$H Live</h1>
-          <p className="section-intro">
-            Weekly onchain intelligence. Macro, DeFi, frxUSD ecosystem updates,
-            and alpha — every episode archived here.
-          </p>
+      <main className="show-page-v2">
+        <ShowSection show={show} onOpenEpisode={setSelectedEpisode} />
 
-          <ShowSection />
+        {show.episodes.length ? (
+          <EpisodeCarousel episodes={show.episodes.slice(0, 9)} onOpen={setSelectedEpisode} />
+        ) : (
+          <section id="show-catchup" className="show-catchup show-catchup--loading">
+            <h2>Catch up the latest shows</h2>
+            <div>Loading the official ONCHAIN CA$H archive…</div>
+          </section>
+        )}
 
-          <div style={{ marginTop: 64 }}>
-            <h2 className="section-heading" style={{ fontSize: 20, marginBottom: 24 }}>All Episodes</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {EPISODES.map((ep) => (
-                <div
-                  key={ep.title}
-                  className="data-card"
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: 0 }}
-                >
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>{ep.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>{ep.date} · {ep.duration}</div>
-                    <div style={{ fontSize: 12, color: 'var(--faint)', marginTop: 4 }}>{ep.desc}</div>
-                  </div>
-                  <a
-                    href="https://youtube.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-ghost btn-sm"
-                  >
-                    Watch ↗
-                  </a>
-                </div>
-              ))}
+        <section className="show-format" aria-labelledby="show-format-title">
+          <div className="show-format__intro">
+            <p className="section-eyebrow">What the show covers</p>
+            <h2 id="show-format-title">Everything that moved onchain.</h2>
+            <p>
+              Each live show turns the week’s market data, policy shifts, yield opportunities,
+              protocol risk, and Frax ecosystem activity into one focused conversation.
+            </p>
+            <div className="show-format__links">
+              <a
+                href={show.channelUrl ?? ONCHAIN_CASH_SHOW.youtubeChannelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="show-ghost-link"
+              >
+                Subscribe on YouTube ↗
+              </a>
+              <a
+                href={ONCHAIN_CASH_SHOW.xUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="show-ghost-link"
+              >
+                Follow on X ↗
+              </a>
             </div>
           </div>
+
+          <div className="show-format__segments">
+            {segments.map((segment) => (
+              <article key={segment.name}>
+                <span aria-hidden="true">¤</span>
+                <div>
+                  <h3>
+                    {segment.url && segment.linkLabel ? (
+                      <>
+                        <a href={segment.url} target="_blank" rel="noopener noreferrer">
+                          {segment.linkLabel}
+                        </a>
+                        {segment.name.startsWith(segment.linkLabel)
+                          ? segment.name.slice(segment.linkLabel.length)
+                          : null}
+                      </>
+                    ) : (
+                      segment.name
+                    )}
+                  </h3>
+                  <p>{segment.description}</p>
+                </div>
+              </article>
+            ))}
+          </div>
         </section>
-      </div>
+
+        <ShowTopicSubmit />
+      </main>
 
       <Footer />
+
+      <EpisodeDetailModal
+        episode={selectedEpisode}
+        show={show}
+        onClose={() => setSelectedEpisode(null)}
+        onOpenEpisode={setSelectedEpisode}
+      />
     </>
   );
 }

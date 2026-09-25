@@ -1,179 +1,171 @@
 import { Link } from 'react-router-dom';
-import { ChainDistributionChart } from './charts/ChainDistributionChart';
-import type { ChainDistribution } from '../types';
+import { useEffect, useState } from 'react';
+import type { ShowData, ShowEpisode } from '../types';
+import {
+  ONCHAIN_CASH_HOSTS,
+  ONCHAIN_CASH_SEGMENTS,
+  ONCHAIN_CASH_SHOW,
+} from '../../shared/data/showConfig.ts';
+import { LiveCountdown } from './LiveCountdown';
+import { getShowCountdown } from '../lib/showSchedule';
+import { EpisodeFrame } from './EpisodeFrame';
 
-interface FrxUsdCardProps {
-  chainDistribution: ChainDistribution[];
-  cached?: boolean;
-  marketCap?: number;
-  totalVolume?: number;
+interface ShowSectionProps {
+  show?: ShowData;
+  onOpenEpisode?: (episode: ShowEpisode) => void;
 }
 
-const SEGMENTS = [
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M2 12V4l6-2 6 2v8l-6 2-6-2z" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M8 2v12M2 4l6 2 6-2" stroke="currentColor" strokeWidth="1.2" />
-      </svg>
-    ),
-    name: 'Dynamic Metrics Open',
-    desc: 'Live onchain metrics and market pulse at show open.',
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M2 6h12M5 9h6" stroke="currentColor" strokeWidth="1.2" />
-      </svg>
-    ),
-    name: 'General News Roundup',
-    desc: 'Macro, crypto, and policy headlines that matter.',
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M8 2l6 3v5c0 2.5-2.5 4-6 4S2 12.5 2 10V5l6-3z" stroke="currentColor" strokeWidth="1.2" />
-      </svg>
-    ),
-    name: 'FUD Watch',
-    desc: 'Separating signal from noise in the fear cycle.',
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M3 13V6l5-3 5 3v7" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M6 13V9h4v4" stroke="currentColor" strokeWidth="1.2" />
-      </svg>
-    ),
-    name: 'DeFi Report / Farming of the Week',
-    desc: 'Yield opportunities and protocol deep dives.',
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.2" />
-        <circle cx="8" cy="8" r="2" fill="currentColor" />
-      </svg>
-    ),
-    name: 'Charmander Segment',
-    desc: 'Community favorite — unfiltered takes.',
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M4 4h8v8H4z" stroke="currentColor" strokeWidth="1.2" />
-        <path d="M4 8h8M8 4v8" stroke="currentColor" strokeWidth="1.2" />
-      </svg>
-    ),
-    name: 'Frax News & Ecosystem Update',
-    desc: 'frxUSD, FXS, and Frax ecosystem developments.',
-  },
-  {
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M9 2L4 9h4l-1 5 5-7H8l1-5z" stroke="currentColor" strokeWidth="1.2" fill="none" />
-      </svg>
-    ),
-    name: 'Alpha Call',
-    desc: 'High-conviction trade ideas and early signals.',
-  },
-];
+const FALLBACK_SHOW: ShowData = {
+  channelId: ONCHAIN_CASH_SHOW.youtubeChannelId,
+  channelUrl: ONCHAIN_CASH_SHOW.youtubeChannelUrl,
+  liveEmbedUrl: `https://www.youtube-nocookie.com/embed/live_stream?channel=${ONCHAIN_CASH_SHOW.youtubeChannelId}`,
+  schedule: { ...ONCHAIN_CASH_SHOW.schedule },
+  hosts: ONCHAIN_CASH_HOSTS,
+  segments: ONCHAIN_CASH_SEGMENTS,
+  episodes: [],
+  source: 'youtube-rss',
+  lastUpdated: new Date(0).toISOString(),
+  cached: false,
+};
 
-export function FrxUsdCard({ chainDistribution, cached, marketCap = 116793422, totalVolume }: FrxUsdCardProps) {
-  const mcM = Math.round((marketCap || 116793422) / 1e6);
-  const volM = totalVolume ? Math.round(totalVolume / 1e6) : 500;
-  return (
-    <div className="frxusd-card">
-      <div>
-        <h2 className="section-heading">frxUSD — The Digital Dollar</h2>
-        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, maxWidth: 520 }}>
-          A payment stablecoin backed by real-world assets. Transparent reserves,
-          redeemable onchain, and built to work everywhere in DeFi — from Curve pools
-          to institutional settlement rails.
-        </p>
-        {cached && <span className="cached-label">⚠ Cached</span>}
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(value));
+}
 
-        <div className="frxusd-facts">
-          <div>
-            <div className="fact-label">Backed by</div>
-            <div className="fact-value">BlackRock BUIDL + U.S. Treasuries</div>
-          </div>
-          <div>
-            <div className="fact-label">Market Cap</div>
-            <div className="fact-value">~${mcM}M</div>
-          </div>
-          <div>
-            <div className="fact-label">Chains</div>
-            <div className="fact-value">Ethereum, Fraxtal, Sonic, Base, Polygon, Solana +more</div>
-          </div>
-          <div>
-            <div className="fact-label">PegKeeper Partners</div>
-            <div className="fact-value">17+ protocols</div>
-          </div>
-          <div>
-            <div className="fact-label">Volume Processed</div>
-            <div className="fact-value">${volM}M+ (4 months)</div>
-          </div>
-          <div>
-            <div className="fact-label">Proof of Reserves</div>
-            <div className="fact-value">Chaos Labs</div>
-          </div>
-        </div>
-      </div>
-
-      <ChainDistributionChart data={chainDistribution} />
-    </div>
+export function ShowSection({ show, onOpenEpisode }: ShowSectionProps) {
+  const data = show ?? FALLBACK_SHOW;
+  const featured = data.episodes[0];
+  const [isLiveWindow, setIsLiveWindow] = useState(
+    () => getShowCountdown(new Date(), data.schedule).isLive,
   );
-}
 
-export function ShowSection() {
+  useEffect(() => {
+    const update = () => setIsLiveWindow(getShowCountdown(new Date(), data.schedule).isLive);
+    const timer = window.setInterval(update, 60_000);
+    return () => window.clearInterval(timer);
+  }, [data.schedule]);
+
   return (
-    <div className="show-split">
-      <div className="episode-card">
-        <div className="episode-thumb">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden>
-            <circle cx="24" cy="24" r="22" stroke="var(--faint)" strokeWidth="1" />
-            <path d="M20 16l16 8-16 8V16z" fill="var(--accent)" />
-          </svg>
-        </div>
-        <div className="episode-body">
-          <h3 className="episode-title">Episode 24 — PegKeeper Wars</h3>
-          <p className="episode-meta">Jun 14, 2026 · 1h 42m</p>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.7 }}>
-            Deep dive into frxUSD PegKeeper mechanics, new partner integrations,
-            and the $500M volume milestone.
+    <section className="show-cinematic-hero" aria-labelledby="show-hero-title">
+      <div className="show-cinematic-hero__media" aria-hidden="true">
+        <div className="show-cinematic-hero__stars" />
+        <div className="show-cinematic-hero__world" />
+        <div className="show-cinematic-hero__grid" />
+      </div>
+      <div className="show-cinematic-hero__veil" aria-hidden="true" />
+
+      <div className="show-cinematic-hero__content">
+        <div className="show-cinematic-hero__intro">
+          <div className="show-live-kicker">
+            <span className="show-live-kicker__dot" />
+            Every Saturday at 6 PM UTC
+          </div>
+
+          <h1 id="show-hero-title" className="show-cinematic-hero__title">
+            ONCHAIN CA$H
+          </h1>
+          <p className="show-cinematic-hero__lead">
+            The weekly breakdown of everything that happened onchain this week, with our personal
+            take!
           </p>
-          <a
-            href="https://youtube.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-primary"
-          >
-            Watch Now ↗
-          </a>
+
+          <div className="show-cinematic-hero__hosts" aria-label="Show hosts">
+            <span>Hosted by</span>
+            <a
+              href={ONCHAIN_CASH_SHOW.xUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {ONCHAIN_CASH_SHOW.fraxForceHandle}
+            </a>
+          </div>
+
+          <div className="show-hero-facts" aria-label="Show facts">
+            <div>
+              <span>When</span>
+              <strong>Every Saturday, 6 PM UTC</strong>
+            </div>
+            <div>
+              <span>Where</span>
+              <strong>Live on X / YouTube</strong>
+            </div>
+            <a href="#show-topic-submit" className="show-hero-facts__submit">
+              <span>Contribute</span>
+              <strong>Submit your topic for the next show →</strong>
+            </a>
+          </div>
+
+          <div className="show-cinematic-hero__actions">
+            <a href="#show-catchup" className="btn btn-primary">Catch up now</a>
+            <a href={data.channelUrl} target="_blank" rel="noopener noreferrer" className="show-ghost-link">
+              Open channel ↗
+            </a>
+          </div>
         </div>
+
+        <aside className="show-now-card" aria-label="Next live show and latest episode">
+          <div className="show-now-card__head">
+            <span>{isLiveWindow ? 'Live now' : 'Next broadcast'}</span>
+            <strong>ONCHAIN CA$H</strong>
+          </div>
+
+          <LiveCountdown schedule={data.schedule} label="Next livestream starts in:" />
+
+          {isLiveWindow ? (
+            <div className="show-now-card__video">
+              <iframe
+                src={data.liveEmbedUrl}
+                title="ONCHAIN CA$H live stream"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
+          ) : featured ? (
+            <button
+              type="button"
+              className="show-now-card__episode"
+              onClick={() => onOpenEpisode?.(featured)}
+              aria-label={`Open latest episode: ${featured.title}`}
+            >
+              <img src={featured.thumbnailUrl} alt="" />
+              <EpisodeFrame dateLabel={formatDate(featured.publishedAt)} />
+              <span className="show-now-card__play" aria-hidden="true">▶</span>
+            </button>
+          ) : (
+            <div className="show-now-card__loading">Loading the official episode feed…</div>
+          )}
+        </aside>
       </div>
 
-      <div>
-        <h3 className="section-heading" style={{ fontSize: 20, marginBottom: 16 }}>Show Segments</h3>
-        {SEGMENTS.map((seg) => (
-          <div key={seg.name} className="segment-row">
-            <div className="segment-icon">{seg.icon}</div>
-            <div>
-              <div className="segment-name">{seg.name}</div>
-              <div className="segment-desc">{seg.desc}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      <a href="#show-catchup" className="show-scroll-cue" aria-label="Scroll to latest shows">
+        <span>Explore latest shows</span>
+        <b>↓</b>
+      </a>
+    </section>
   );
 }
 
-export function MobileWatchCta() {
+/** Sticky mobile CTA — only show on the home thesis (“brand”) band. */
+export function MobileWatchCta({ visible = false }: { visible?: boolean }) {
+  useEffect(() => {
+    const root = document.documentElement;
+    if (visible) root.dataset.watchCta = 'on';
+    else delete root.dataset.watchCta;
+    return () => {
+      delete root.dataset.watchCta;
+    };
+  }, [visible]);
+
+  if (!visible) return null;
+
   return (
-    <div className="mobile-watch-cta">
+    <div className="mobile-watch-cta is-visible">
       <Link to="/show" className="btn btn-primary">
         Watch Show
       </Link>
