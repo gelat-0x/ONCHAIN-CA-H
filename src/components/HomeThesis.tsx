@@ -94,7 +94,7 @@ export function HomeThesis() {
             </span>
           </h2>
           <p className="home-thesis__show-note">
-            One of our first ONCHAIN CA$H products is the weekly live show, every Saturday we go live
+            One of our first ONCHAIN CA$H products is the weekly live show, every Friday we go live
             and talk through what moved onchain that week.
           </p>
           <Link to="/show" className="home-thesis__show-cta">

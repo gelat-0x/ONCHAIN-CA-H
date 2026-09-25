@@ -4,7 +4,7 @@ import { formatUsd } from './formatUsd';
 const BRAND_LINES = [
   'FrxGM',
   'ONCHAIN CA$H is built for you, so you can get the bigger picture.',
-  'Every Saturday at 6 PM UTC, Frax Force goes live with our dedicated ONCHAIN CA$H Show.',
+  'Every Friday at 6 PM UTC, Frax Force goes live with our dedicated ONCHAIN CA$H Show.',
   'Join our Frax Force Discord and connect with like minded people.',
   'Generate your own content in Studio.',
   'FRAX TO THE MOON.',

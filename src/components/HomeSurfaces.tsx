@@ -37,7 +37,7 @@ const CARDS: SurfaceCard[] = [
   {
     to: '/show',
     title: 'ONCHAIN CA$H Show',
-    copy: 'Livestream with Frax Force on every Saturday. A breakdown talk of the week across Frax and the broader ecosystem.',
+    copy: 'Livestream with Frax Force on every Friday. A breakdown talk of the week across Frax and the broader ecosystem.',
     liveKey: 'show',
   },
   {
@@ -122,10 +122,10 @@ function CycleLine({
   );
 }
 
-function nextShowUtc(now: number): Date {
+function nextFridayUtc(now: number): Date {
   const d = new Date(now);
   const day = d.getUTCDay();
-  let add = (6 - day + 7) % 7;
+  let add = (5 - day + 7) % 7;
   const candidate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + add, 18, 0, 0));
   if (candidate.getTime() <= now) {
     candidate.setUTCDate(candidate.getUTCDate() + (add === 0 ? 7 : 0));
@@ -135,7 +135,7 @@ function nextShowUtc(now: number): Date {
 }
 
 function showTimeLeft(now: number): string {
-  const ms = Math.max(0, nextShowUtc(now).getTime() - now);
+  const ms = Math.max(0, nextFridayUtc(now).getTime() - now);
   const days = Math.floor(ms / 86_400_000);
   const hours = Math.floor((ms % 86_400_000) / 3_600_000);
   if (days > 0) return `${days}d ${hours}h left`;
@@ -257,7 +257,7 @@ export function HomeSurfaces({
   }, [totalTvl, activePools, poolCount, totalVolume24h, partnerCount]);
 
   const showLines = useMemo(
-    () => ['Next Saturday', showTimeLeft(now), 'Stay ahead', 'Frax Force keeps you in the loop'],
+    () => ['Next Friday', showTimeLeft(now), 'Stay ahead', 'Frax Force keeps you in the loop'],
     [now],
   );
 

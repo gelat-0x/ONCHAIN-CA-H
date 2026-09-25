@@ -23,7 +23,7 @@ const ENTRIES = [
     id: 'show',
     to: '/show',
     label: 'ONCHAIN CA$H Show',
-    line: 'Saturday 18:00 UTC with Frax Force',
+    line: 'Friday 18:00 UTC with Frax Force',
     cta: 'Watch',
   },
   {
