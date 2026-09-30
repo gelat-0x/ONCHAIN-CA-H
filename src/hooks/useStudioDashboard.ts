@@ -6,11 +6,23 @@ import {
   variantById,
   type StudioVariantId,
   isAprVariant,
+  isPoolMetricVariant,
+  POOL_METRIC_BY_VARIANT,
 } from '../components/studio/studioRegistry';
+import { rankStudioPools, studioMetricValue } from '../lib/studioApr';
 
 const DEFAULT_DUAL: [string, string] = ['msusd', 'crvusd'];
 
 export function defaultStudioSelection(variantId: StudioVariantId, pools: PoolData[]): string[] {
+  if (isPoolMetricVariant(variantId)) {
+    const metric = POOL_METRIC_BY_VARIANT[variantId] ?? 'apr';
+    return rankStudioPools(
+      pools.filter((pool) => studioMetricValue(pool, metric) > 0),
+      metric,
+      5,
+    ).map((pool) => pool.id);
+  }
+
   const sorted = [...pools].sort((a, b) => b.tvl - a.tvl);
   const top = sorted.map((p) => p.id);
   const slots = variantById(variantId).slotCount ?? 0;
@@ -33,6 +45,11 @@ function normalizeSelection(
   pools: PoolData[],
   prev: string[],
 ): string[] {
+  if (isPoolMetricVariant(variantId)) {
+    const valid = prev.filter((id) => pools.some((pool) => pool.id === id)).slice(0, 5);
+    return valid.length ? valid : defaultStudioSelection(variantId, pools);
+  }
+
   const slots = variantById(variantId).slotCount ?? 0;
   if (!isAprVariant(variantId) || slots === 0) return [];
   const valid = prev.filter((id) => pools.some((p) => p.id === id));
@@ -74,7 +91,7 @@ export function useStudioDashboard(
       setLastUpdated(new Date());
       setError(null);
 
-      if (!isAprVariant(variantId)) return;
+      if (!isAprVariant(variantId) && !isPoolMetricVariant(variantId)) return;
 
       setSelection((prev) => {
         if (variantRef.current !== variantId) {
@@ -111,7 +128,7 @@ export function useStudioDashboard(
   useEffect(() => {
     if (variantRef.current === variantId) return;
     variantRef.current = variantId;
-    if (!pools.length || !isAprVariant(variantId)) return;
+    if (!pools.length || (!isAprVariant(variantId) && !isPoolMetricVariant(variantId))) return;
     setSelection(defaultStudioSelection(variantId, pools));
   }, [variantId, pools, setSelection]);
 

@@ -11,6 +11,25 @@ export function studioDisplayApr(pool: PoolData): number {
   return 0;
 }
 
+export type StudioRankMetric = 'apr' | 'tvl' | 'volume';
+
+export function studioMetricValue(pool: PoolData, metric: StudioRankMetric): number {
+  if (metric === 'tvl') return pool.tvl;
+  if (metric === 'volume') return pool.volume24h;
+  return studioDisplayApr(pool);
+}
+
+/** Highest metric first. `limit` caps a top-five board. */
+export function rankStudioPools(
+  pools: PoolData[],
+  metric: StudioRankMetric,
+  limit = 5,
+): PoolData[] {
+  return [...pools]
+    .sort((a, b) => studioMetricValue(b, metric) - studioMetricValue(a, metric))
+    .slice(0, limit);
+}
+
 export function studioAprLabel(pool: PoolData): string {
   if (stakeDaoDisplayApr(pool) > 0) {
     return pool.onlyBoost ? 'Only Boost APR' : 'Boosted APR';

@@ -19,6 +19,7 @@ import {
 import { TokenLogo } from '../TokenLogo';
 import { StudioCanvasBackground } from './StudioCanvasBackground';
 import { StudioVenueBadge } from './StudioVenueBadge';
+import { StudioFablesCredit } from './StudioFablesCredit';
 import onlyBoostMark from '../../assets/onlyboost.png';
 
 interface AprPostCanvasProps {
@@ -124,6 +125,7 @@ function HeroSinglePanel({ pool, accent }: { pool: PoolData; accent: string }) {
       </div>
       <div className="apr-canvas__hero-side">
         <p className="apr-canvas__pair apr-canvas__pair--hero">{pool.name}</p>
+        {pool.venue === 'fables' && <StudioFablesCredit />}
         <CoinPair pool={pool} accent={accent} variant="hero" />
       </div>
     </div>
@@ -148,6 +150,7 @@ function PairPanel({
     >
       <div className="apr-canvas__pair-meta">
         <p className="apr-canvas__pair">{pool.name}</p>
+        {pool.venue === 'fables' && <StudioFablesCredit compact={compact} />}
       </div>
       <AprBlock pool={pool} accent={accent} />
       <CoinPair pool={pool} accent={accent} variant={compact ? 'triple' : 'dual'} />

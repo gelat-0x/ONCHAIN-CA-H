@@ -9361,6 +9361,120 @@ html.home-snap {
   background: rgba(0, 0, 0, 0.5);
 }
 .studio-pair-slot__trigger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.studio-top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.studio-top-list__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.studio-top-list__count {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.studio-top-list__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-top-list__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+}
+.studio-top-list__row .studio-pair-slot__meta {
+  flex: 1;
+  min-width: 0;
+}
+.studio-top-list__remove,
+.studio-top-list__add {
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.studio-top-list__remove {
+  flex-shrink: 0;
+  color: var(--muted);
+  padding: 4px 2px;
+}
+.studio-top-list__remove:hover:not(:disabled) {
+  color: var(--foreground);
+}
+.studio-top-list__add {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+}
+.studio-top-list__add:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.studio-top-list__remove:disabled,
+.studio-top-list__add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.studio-fables {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.studio-fables__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sc-faint);
+}
+.studio-fables__logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: #000;
+}
+.apr-canvas__hero-side .studio-fables {
+  justify-content: center;
+  width: 100%;
+  margin-top: 0;
+}
+.apr-canvas__hero-side .studio-fables__logo {
+  height: 34px;
+}
+.studio-fables--compact {
+  margin-top: 6px;
+}
+.studio-fables--compact .studio-fables__logo {
+  height: 24px;
+}
+.top-pools-canvas__meta .studio-fables {
+  margin-top: 2px;
+}
+.top-pools-canvas__meta .studio-fables__logo {
+  height: 22px;
+}
 .studio-pair-slot__trigger--filled { padding: 10px 14px; }
 .studio-pair-slot__logos {
   display: flex;

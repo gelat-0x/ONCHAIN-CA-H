@@ -2,12 +2,13 @@ import { forwardRef, useMemo } from 'react';
 import type { PoolData } from '../../types';
 import { formatUsd } from '../../lib/formatUsd';
 import { formatPoolApr, poolChartColor } from '../../lib/poolChartColor';
-import { studioDisplayApr } from '../../lib/studioApr';
+import { rankStudioPools, studioMetricValue } from '../../lib/studioApr';
 import { studioAccentForTone } from '../../lib/studioTone';
 import { studioBackgroundTone } from '../../../shared/constants/studioBackgrounds';
 import type { StudioPoolMetric } from './studioRegistry';
 import { TokenLogo } from '../TokenLogo';
 import { StudioCanvasShell } from './StudioCanvasShell';
+import { StudioFablesCredit } from './StudioFablesCredit';
 import { StudioVenueBadge } from './StudioVenueBadge';
 
 interface TopPoolsCanvasProps {
@@ -23,26 +24,13 @@ const METRIC_COPY: Record<StudioPoolMetric, { topicMain: string; topicSub: strin
   volume: { topicMain: 'Volume 24h', topicSub: 'Pegkeeper pools by 24h volume' },
 };
 
-function metricValue(pool: PoolData, metric: StudioPoolMetric): number {
-  if (metric === 'apr') return studioDisplayApr(pool);
-  if (metric === 'tvl') return pool.tvl;
-  return pool.volume24h;
-}
-
 export const TopPoolsCanvas = forwardRef<HTMLDivElement, TopPoolsCanvasProps>(
   function TopPoolsCanvas({ pools, backgroundId, metric = 'apr' }, ref) {
     const tone = studioBackgroundTone(backgroundId);
     const copy = METRIC_COPY[metric];
-    const ranked = useMemo(
-      () =>
-        [...pools]
-          .filter((p) => metricValue(p, metric) > 0)
-          .sort((a, b) => metricValue(b, metric) - metricValue(a, metric))
-          .slice(0, 5),
-      [pools, metric],
-    );
+    const ranked = useMemo(() => rankStudioPools(pools, metric, 5), [pools, metric]);
 
-    const maxValue = ranked[0] ? metricValue(ranked[0], metric) : 0;
+    const maxValue = ranked[0] ? studioMetricValue(ranked[0], metric) : 0;
 
     return (
       <StudioCanvasShell
@@ -55,7 +43,7 @@ export const TopPoolsCanvas = forwardRef<HTMLDivElement, TopPoolsCanvasProps>(
       >
         <ol className="top-pools-canvas__list">
           {ranked.map((pool, i) => {
-            const value = metricValue(pool, metric);
+            const value = studioMetricValue(pool, metric);
             const accent = studioAccentForTone(poolChartColor(pool), tone);
             const sym = pool.stablecoin ?? pool.name.split('/')[1]?.trim() ?? pool.id;
             const isTop = value === maxValue && maxValue > 0;
@@ -89,6 +77,7 @@ export const TopPoolsCanvas = forwardRef<HTMLDivElement, TopPoolsCanvasProps>(
                 </div>
                 <div className="top-pools-canvas__meta">
                   <span className="top-pools-canvas__pair">{pool.name}</span>
+                  {pool.venue === 'fables' && <StudioFablesCredit />}
                 </div>
                 <div className="top-pools-canvas__metrics">
                   <span className="top-pools-canvas__apr tabular-nums">{primary}</span>

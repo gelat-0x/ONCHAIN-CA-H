@@ -11,6 +11,7 @@ import { ChainTvlCanvas } from '../components/studio/ChainTvlCanvas';
 import { TvlTrendCanvas } from '../components/studio/TvlTrendCanvas';
 import { StudioBackdrop } from '../components/studio/StudioBackdrop';
 import { StudioPairSlot } from '../components/studio/StudioPairSlot';
+import { StudioTopList } from '../components/studio/StudioTopList';
 import { StudioProtocolPicker } from '../components/studio/StudioProtocolPicker';
 import { StudioStylePanel } from '../components/studio/StudioStylePanel';
 import { StudioDataBar } from '../components/studio/StudioDataBar';
@@ -36,7 +37,7 @@ import { buildStudioFilename } from '../lib/studioModel';
 import { useStudioDashboard } from '../hooks/useStudioDashboard';
 import { useStudioProtocolData, getProtocolAnalysis } from '../hooks/useStudioProtocolData';
 import { DASHBOARD_DEFILLAMA_PROTOCOLS } from '../../shared/constants/defiLlamaProtocols';
-import { studioDisplayApr } from '../lib/studioApr';
+import { rankStudioPools, studioDisplayApr } from '../lib/studioApr';
 
 const DEFAULT_PROTOCOL: DashboardDefiLlamaSlug = 'frax-finance';
 
@@ -111,7 +112,8 @@ export function ContentStudioPage() {
     Boolean(protocolAnalysis?.chainTvl.some((c) => Number.isFinite(c.tvl) && c.tvl > 0));
 
   const canExportApr = isAprVariant(variantId) && selectedPools.length === slots;
-  const canExportPoolMetric = isPoolMetricVariant(variantId) && poolMetricReady && !loading;
+  const canExportPoolMetric =
+    isPoolMetricVariant(variantId) && selectedPools.length > 0 && !loading;
   const canExportProtocol = (kpiReady || chainReady) && !protocolData.loading;
   const canExportTrend = trendReady && !protocolData.loading;
 
@@ -176,7 +178,7 @@ export function ContentStudioPage() {
     setExportError(null);
     const filename = buildStudioFilename(
       variantId,
-      isAprVariant(variantId) ? selectedPools : pools,
+      isAprVariant(variantId) || isPoolMetricVariant(variantId) ? selectedPools : pools,
       protocolSlug,
     );
     try {
@@ -210,7 +212,12 @@ export function ContentStudioPage() {
     }
     if (poolMetric && canExportPoolMetric) {
       return (
-        <TopPoolsCanvas ref={ref} pools={pools} metric={poolMetric} backgroundId={backgroundId} />
+        <TopPoolsCanvas
+          ref={ref}
+          pools={selectedPools}
+          metric={poolMetric}
+          backgroundId={backgroundId}
+        />
       );
     }
     if (variantId === 'tvl-trend' && protocolAnalysis && trendReady) {
@@ -246,7 +253,9 @@ export function ContentStudioPage() {
       return `Select ${slots} pool${slots > 1 ? 's' : ''} to preview.`;
     }
     if (isPoolMetricVariant(variantId)) {
-      return loading ? 'Loading pool data…' : 'No pool data available.';
+      if (loading && !pools.length) return 'Loading pool data…';
+      if (!poolMetricReady) return 'No pool data available.';
+      return 'Add a pool to preview.';
     }
     if (variantId === 'tvl-trend' && protocolAnalysis && !trendReady) {
       return 'No TVL history available for this protocol.';
@@ -365,6 +374,29 @@ export function ContentStudioPage() {
                         />
                       ))}
                     </div>
+                  )}
+                </section>
+              )}
+
+              {isPoolMetricVariant(variantId) && (
+                <section className="studio-config-card">
+                  {loading && !pools.length ? (
+                    <p className="studio-config-card__loading" role="status">
+                      Loading pools…
+                    </p>
+                  ) : (
+                    <StudioTopList
+                      pools={pools}
+                      selectedIds={selection}
+                      onChange={(ids) => {
+                        const metric = poolMetric ?? 'apr';
+                        const chosen = ids
+                          .map((id) => pools.find((pool) => pool.id === id))
+                          .filter((pool): pool is PoolData => Boolean(pool));
+                        setSelection(rankStudioPools(chosen, metric, 5).map((pool) => pool.id));
+                      }}
+                      disabled={loading}
+                    />
                   )}
                 </section>
               )}
