@@ -62,7 +62,7 @@ export function PegKeeperHero({
       <div id="pegkeeper-hero" className="pegkeeper-hero-block__left">
         <p className="section-eyebrow">frxUSD PegKeeper Family</p>
         <h1 className="pegkeeper-hero-block__title">
-          frxUSD PegKeepers on Curve
+          frxUSD PegKeepers
         </h1>
         <p className="pegkeeper-hero-block__copy">
           Pools that hold the dollar and share positive yield from frxUSD reserves.

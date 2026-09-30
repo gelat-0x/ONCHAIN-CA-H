@@ -41,6 +41,8 @@ export interface PoolData {
   fablesUrl?: string;
   merklUrl?: string;
   ownUrl?: string;
+  /** Hourly volume for a pool that has no TVL history yet. Drawn instead of the TVL line. */
+  volumeHistory?: Array<{ ts: number; value: number }>;
   pegDeviation: number[];
   /** 7-day TVL trend ending at current `tvl`. */
   tvlHistory7d: number[];

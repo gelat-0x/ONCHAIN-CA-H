@@ -26,6 +26,15 @@ interface FablesGw<T> {
   pools?: Record<string, T>;
 }
 
+interface FablesVolumeBucket {
+  timestamp?: string | number;
+  volumeUsd?: number;
+}
+
+interface FablesVolumeHistory {
+  windows?: Record<string, { buckets?: FablesVolumeBucket[] }>;
+}
+
 export interface FablesEusdLive {
   tvlUsd: number;
   volumeUsd: number;
@@ -33,6 +42,7 @@ export interface FablesEusdLive {
   swapFeeApr: number;
   merklApr: number;
   merklWeeklyUsd: number;
+  volumeHistory: Array<{ ts: number; value: number }>;
 }
 
 function pickPool<T>(pools: Record<string, T> | undefined, id: string): T | undefined {
@@ -43,11 +53,30 @@ function pickPool<T>(pools: Record<string, T> | undefined, id: string): T | unde
   return hit?.[1];
 }
 
+function volumeHistoryFrom(body: FablesVolumeHistory | null): Array<{ ts: number; value: number }> {
+  const buckets = body?.windows?.WEEK?.buckets ?? body?.windows?.DAY?.buckets ?? [];
+  const points = buckets
+    .map((bucket) => {
+      const raw = Number(bucket.timestamp);
+      const value = Number(bucket.volumeUsd);
+      const ts = raw > 1e12 ? raw : raw * 1000;
+      return { ts, value };
+    })
+    .filter((point) => Number.isFinite(point.ts) && point.ts > 0 && Number.isFinite(point.value) && point.value >= 0)
+    .sort((a, b) => a.ts - b.ts);
+  return points;
+}
+
 export async function fetchFablesEusdPool(): Promise<FablesEusdLive | null> {
   const headers = { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' };
-  const [tvlBody, volBody] = await Promise.all([
+  const historyUrl = `${API_ENDPOINTS.fables.poolVolumeHistory}?${new URLSearchParams({
+    addressOrId: FABLES_POOL_ID,
+    durations: 'WEEK',
+  })}`;
+  const [tvlBody, volBody, historyBody] = await Promise.all([
     fetchJson<FablesGw<FablesPoolTvl>>(API_ENDPOINTS.fables.poolTvl, { headers }),
     fetchJson<FablesGw<FablesPoolVolume>>(API_ENDPOINTS.fables.poolVolume24h, { headers }),
+    fetchJson<FablesVolumeHistory>(historyUrl, { headers }),
   ]);
 
   const tvl = pickPool(tvlBody?.pools, FABLES_POOL_ID);
@@ -68,6 +97,7 @@ export async function fetchFablesEusdPool(): Promise<FablesEusdLive | null> {
     swapFeeApr,
     merklApr,
     merklWeeklyUsd: MERKL_WEEKLY_USD,
+    volumeHistory: volumeHistoryFrom(historyBody),
   };
 }
 
@@ -91,6 +121,9 @@ export function applyFablesLive(entry: PoolRegistryEntry, live: FablesEusdLive |
   base.merklWeeklyUsd = live.merklWeeklyUsd;
   base.apr = base.swapFeeApr;
   base.frxUsdBalanceSource = 'fables';
+  if (live.volumeHistory.length >= 2) {
+    base.volumeHistory = live.volumeHistory;
+  }
   if (base.frxUsdBalanceUsd != null && base.tvl > 0) {
     base.frxUsdSharePct = +Math.min(100, (base.frxUsdBalanceUsd / base.tvl) * 100).toFixed(2);
   }

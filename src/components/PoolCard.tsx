@@ -2,10 +2,8 @@ import type { PoolData } from '../types';
 import { MiniSparkline } from './charts/MiniSparkline';
 import { formatUsd } from '../lib/formatUsd';
 import { formatPoolApr, poolChartColor } from '../lib/poolChartColor';
-import { isFablesPool, pegKeeperAprMetricLabel, pegKeeperAprSource, pegKeeperDisplayApr } from '../lib/pegKeeperApr';
+import { cumulativeVolume, isFablesPool, pegKeeperAprMetricLabel, pegKeeperAprSource, pegKeeperDisplayApr, volumeSeriesLabel } from '../lib/pegKeeperApr';
 import stakeDaoBoost from '../assets/stakedao-boost.png';
-import fablesMark from '../assets/venues/fables.png';
-import merklMark from '../assets/venues/merkl.png';
 import robinhoodMark from '../assets/venues/robinhood.png';
 import type { PoolTag } from '../lib/poolTags';
 import { TokenLogo } from './TokenLogo';
@@ -51,6 +49,7 @@ export function PoolCard({
   const aprSource = pegKeeperAprSource(pool);
   const aprMetricLabel = pegKeeperAprMetricLabel(pool);
   const fables = isFablesPool(pool);
+  const volumeSeries = fables && pool.volumeHistory?.length ? cumulativeVolume(pool.volumeHistory) : null;
   const shareTip =
     pool.frxUsdSharePct != null ? `${pool.frxUsdSharePct.toFixed(1)}% of pool` : undefined;
 
@@ -111,17 +110,18 @@ export function PoolCard({
         </div>
       )}
 
-      <div className="pool-card-spark" aria-hidden="true">
+      <div className="pool-card-spark" aria-hidden={volumeSeries ? undefined : true}>
+        {volumeSeries && <span className="pool-card-spark-label">{volumeSeriesLabel(volumeSeries)}</span>}
         <MiniSparkline
-          data={pool.tvlHistory7d ?? [pool.tvl]}
-          series={pool.tvlHistorySeries}
+          data={volumeSeries ? volumeSeries.map((point) => point.value) : (pool.tvlHistory7d ?? [pool.tvl])}
+          series={volumeSeries ?? pool.tvlHistorySeries}
           height={48}
           color={chartColor}
         />
       </div>
 
       {fables && (
-        <div className="pool-card-yields">
+        <div className="pool-card-yields pool-card-yields--fables">
           <a
             className="pool-card-yield"
             href={pool.fablesUrl ?? 'https://www.fables.fi/markets/eusd'}
@@ -129,9 +129,8 @@ export function PoolCard({
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
           >
-            <img className="pool-card-yield__logo" src={fablesMark} alt="Fables" />
             <span className="metric-label">Swap fees</span>
-            <span className={`pool-card-yield__value tabular-nums ${aprClass(pool.swapFeeApr ?? 0)}`}>
+            <span className={`metric-value tabular-nums ${aprClass(pool.swapFeeApr ?? 0)}`}>
               {formatFineApr(pool.swapFeeApr)}
             </span>
           </a>
@@ -142,9 +141,8 @@ export function PoolCard({
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
           >
-            <img className="pool-card-yield__logo" src={merklMark} alt="Merkl" />
             <span className="metric-label">Merkl</span>
-            <span className={`pool-card-yield__value tabular-nums ${aprClass(pool.merklApr ?? 0)}`}>
+            <span className={`metric-value tabular-nums ${aprClass(pool.merklApr ?? 0)}`}>
               {formatFineApr(pool.merklApr)}
             </span>
           </a>

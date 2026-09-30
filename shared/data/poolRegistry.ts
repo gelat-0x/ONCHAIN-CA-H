@@ -550,7 +550,7 @@ export const POOL_REGISTRY: PoolRegistryEntry[] = [
     description:
       "eUSD is Own's overcollateralized stablecoin, minted against eSPY at 150% or more and redeemable for $1 of eSPY. This pair trades on Fables, a Uniswap v4 pool on Robinhood Chain.",
     chain: 'Robinhood Chain',
-    since: '2026-09',
+    since: '2026-09-30',
     dlSymbols: [],
     duneTvlFallback: 20_204,
     duneFrxUsdTvlFallback: 9_376,

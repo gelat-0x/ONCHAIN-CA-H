@@ -8,7 +8,9 @@ import { TokenLogo } from './TokenLogo';
 import { HubShareRing } from './HubShareRing';
 import { formatPoolApr, poolChartColor } from '../lib/poolChartColor';
 import {
+  cumulativeVolume,
   isFablesPool,
+  volumeSeriesLabel,
   pegKeeperCurveApr,
   pegKeeperAprMetricLabel,
   poolSupportsStakeDao,
@@ -59,6 +61,7 @@ export function PoolExploreModal({ pool, onClose }: PoolExploreModalProps) {
   if (!pool) return null;
 
   const fables = isFablesPool(pool);
+  const volumeSeries = fables && pool.volumeHistory?.length ? cumulativeVolume(pool.volumeHistory) : null;
   const curveHref = fables ? undefined : poolCurveUrl(pool.id);
   const curveApr = pegKeeperCurveApr(pool);
   const curveYieldLabel = pegKeeperAprMetricLabel(pool) === 'APY' ? 'Curve APY' : 'Curve APR';
@@ -148,7 +151,7 @@ export function PoolExploreModal({ pool, onClose }: PoolExploreModalProps) {
                   {formatFineApr(pool.swapFeeApr)}
                 </span>
                 <span className="pool-modal__yield-note">
-                  Yearly rate from the last day of swap fees, against current deposits.{' '}
+                  Last day of swap fees, as a yearly rate on current deposits.{' '}
                   <a href={pool.fablesUrl} target="_blank" rel="noopener noreferrer">
                     View on Fables ↗
                   </a>
@@ -164,8 +167,8 @@ export function PoolExploreModal({ pool, onClose }: PoolExploreModalProps) {
                 </span>
                 <span className="pool-modal__yield-note">
                   {pool.merklWeeklyUsd != null
-                    ? `About $${pool.merklWeeklyUsd.toLocaleString('en-US')} a week in eUSD and frxUSD, shared across the pool and paid through Merkl. The rate is that budget against current deposits.`
-                    : 'Extra rewards paid through Merkl, shared across the pool.'}{' '}
+                    ? `$${pool.merklWeeklyUsd.toLocaleString('en-US')} a week in eUSD and frxUSD through Merkl, as a yearly rate on current deposits.`
+                    : 'Extra rewards through Merkl, as a yearly rate on current deposits.'}{' '}
                   <a href={pool.merklUrl} target="_blank" rel="noopener noreferrer">
                     View on Merkl ↗
                   </a>
@@ -296,11 +299,17 @@ export function PoolExploreModal({ pool, onClose }: PoolExploreModalProps) {
         </div>
 
         <div className="pool-modal__chart-wrap">
-          <div className="chart-title">Pool TVL (7d)</div>
+          <div className="chart-title">
+            {volumeSeries ? volumeSeriesLabel(volumeSeries) : 'Pool TVL (7d)'}
+          </div>
+          {volumeSeries ? (
+            <p className="pool-modal__chart-note">Running total of trades on Fables since this pool listed.</p>
+          ) : null}
           <PoolTvlChart
-            data={pool.tvlHistory7d ?? [pool.tvl]}
-            series={pool.tvlHistorySeries}
-            height={112}
+            data={volumeSeries ? volumeSeries.map((point) => point.value) : (pool.tvlHistory7d ?? [pool.tvl])}
+            series={volumeSeries ?? pool.tvlHistorySeries}
+            height={volumeSeries ? 168 : 112}
+            label={volumeSeries ? 'Volume' : 'TVL'}
           />
         </div>
 

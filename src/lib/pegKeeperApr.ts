@@ -5,6 +5,29 @@ export function isFablesPool(pool: PoolData): boolean {
   return pool.venue === 'fables';
 }
 
+/** "Volume today" only while the series is still inside one day. */
+export function volumeSeriesLabel(points: Array<{ ts: number }>): 'Volume today' | 'Volume' {
+  if (points.length < 2) return 'Volume';
+  const span = points[points.length - 1]!.ts - points[0]!.ts;
+  return span < 36 * 60 * 60 * 1000 ? 'Volume today' : 'Volume';
+}
+
+/** Running total, with a zero one hour before the first trade, so a same-day pool still draws a line. */
+export function cumulativeVolume(
+  points: Array<{ ts: number; value: number }>,
+): Array<{ ts: number; value: number }> {
+  if (points.length < 2) return points;
+  const hour = 60 * 60 * 1000;
+  let sum = 0;
+  return [
+    { ts: points[0]!.ts - hour, value: 0 },
+    ...points.map((point) => {
+      sum += point.value;
+      return { ts: point.ts, value: sum };
+    }),
+  ];
+}
+
 /** Best headline yield for PegKeeper cards: Stake DAO APR, else Curve Total APY, else Curve APR. */
 export function pegKeeperDisplayApr(pool: PoolData): number {
   if (isFablesPool(pool) && pool.merklApr != null && pool.merklApr > 0) return pool.merklApr;

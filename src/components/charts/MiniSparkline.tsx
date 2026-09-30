@@ -18,7 +18,7 @@ function autoYRange(points: ChartPoint[]): { yMin?: number; yMax?: number } {
   const range = max - min;
   const pad = Math.max(range * 0.14, max * 0.025, 1);
 
-  return { yMin: min - pad, yMax: max + pad };
+  return { yMin: min <= 0 ? 0 : min - pad, yMax: max + pad };
 }
 
 /** Compact TVL sparkline for pool cards — always visible, dark-integrated. */
@@ -40,6 +40,8 @@ export function MiniSparkline({
 
   const { yMin, yMax } = autoYRange(points);
   const lineColor = color ?? 'rgba(255,255,255,0.86)';
+  const span = points.length >= 2 ? points[points.length - 1]!.ts - points[0]!.ts : 0;
+  const timeUnit = span > 0 && span < 36 * 60 * 60 * 1000 ? 'hour' : 'day';
 
   return (
     <TimeSeriesChart
@@ -60,7 +62,7 @@ export function MiniSparkline({
       showYAxis={false}
       showTooltip={false}
       animate={false}
-      timeUnit="day"
+      timeUnit={timeUnit}
       formatValue={() => ''}
       className="mini-sparkline"
     />

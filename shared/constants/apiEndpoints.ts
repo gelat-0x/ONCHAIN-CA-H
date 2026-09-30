@@ -64,6 +64,7 @@ export const API_ENDPOINTS = {
   fables: {
     poolTvl: 'https://www.fables.fi/api/gw/PoolTvl',
     poolVolume24h: 'https://www.fables.fi/api/gw/PoolVolume24h',
+    poolVolumeHistory: 'https://www.fables.fi/api/gw/PoolVolumeHistoryBatch',
   },
 
   stakeDao: {

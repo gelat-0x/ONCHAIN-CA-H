@@ -4341,11 +4341,20 @@ html.home-snap {
   object-fit: cover;
   display: block;
 }
+.pool-card-spark-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .pool-card-yields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin: 2px 0 10px;
   position: relative;
   z-index: 2;
 }
@@ -4353,48 +4362,58 @@ html.home-snap {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  padding: 8px 8px 7px;
-  border-radius: 10px;
   text-decoration: none;
   color: inherit;
-  background: color-mix(in srgb, var(--surface-1) 82%, #000);
-  border: 1px solid var(--border-strong);
 }
-.pool-card-yield--merkl {
-  background: color-mix(in srgb, #111 88%, var(--surface-1));
-}
-.pool-card-yield:hover {
-  border-color: rgba(255, 255, 255, 0.45);
+.pool-card-yield__top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 .pool-card-yield__logo {
   display: block;
-  height: 28px;
+  height: 14px;
   width: auto;
-  max-width: 100%;
+  max-width: 58px;
   object-fit: contain;
   object-position: left center;
-  background: #0a0a0a;
-  border-radius: 5px;
-  padding: 3px 6px;
+  background: #111;
+  border-radius: 3px;
+  padding: 1px 3px;
+  flex-shrink: 0;
 }
-.pool-card-yield__value {
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.1;
+.pool-modal__chart-note {
+  margin: 0 0 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 .pool-modal__yield-tier--merkl {
   background: rgba(255, 255, 255, 0.04);
 }
 .pool-modal__venue-logo {
-  height: 22px;
+  height: 16px;
   width: auto;
-  max-width: 120px;
+  max-width: 92px;
   object-fit: contain;
-  background: #0a0a0a;
+  object-position: center;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 3px 6px;
+  box-sizing: content-box;
+  flex-shrink: 0;
+}
+.pool-modal__yield-grid--pair .pool-modal__yield-tier {
+  padding: 10px 12px;
+  gap: 4px;
+}
+.pool-modal__yield-grid--pair .pool-modal__yield-note {
+  margin-top: 2px;
 }
 .pool-modal__chain-logo {
   width: 16px;
@@ -4837,6 +4856,7 @@ html.home-snap {
   color: #00ff88;
   text-decoration: underline;
   text-underline-offset: 2px;
+  white-space: nowrap;
 }
 @media (max-width: 640px) {
   .pool-modal__yield-grid { grid-template-columns: 1fr; }
@@ -5082,6 +5102,16 @@ html.home-snap {
   font-weight: 700;
 }
 .pool-card-yields--compact { padding: var(--space-2); gap: 4px; }
+.pool-card-yields.pool-card-yields--fables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 2px 0 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
 .pool-card-metrics .metric-value {
   font-size: 13px;
   font-weight: 600;

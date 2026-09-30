@@ -6,6 +6,7 @@ interface PoolTvlChartProps {
   data: number[];
   series?: Array<{ ts: number; value: number }>;
   height?: number;
+  label?: string;
 }
 
 function toSeries(data: number[], series?: Array<{ ts: number; value: number }>): ChartPoint[] {
@@ -20,20 +21,22 @@ function toSeries(data: number[], series?: Array<{ ts: number; value: number }>)
 }
 
 /** 7-day TVL trend for pool explore modal. */
-export function PoolTvlChart({ data, series, height = 240 }: PoolTvlChartProps) {
+export function PoolTvlChart({ data, series, height = 240, label = 'TVL' }: PoolTvlChartProps) {
   const points = toSeries(data.length ? data : [0], series);
+  const span = points.length >= 2 ? points[points.length - 1]!.ts - points[0]!.ts : 0;
+  const timeUnit = span > 0 && span < 36 * 60 * 60 * 1000 ? 'hour' : 'day';
 
   return (
     <TimeSeriesChart
       className="pool-tvl-chart"
       height={height}
       theme="modal"
-      timeUnit="day"
+      timeUnit={timeUnit}
       formatValue={(v) => formatUsd(v)}
       series={[
         {
           id: 'tvl',
-          label: 'TVL',
+          label,
           color: '#FFFFFF',
           data: points,
           fill: true,

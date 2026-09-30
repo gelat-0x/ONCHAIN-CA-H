@@ -32,6 +32,7 @@ const POOL_CHART_COLORS: Record<string, string> = {
   vusd: '#8b5cf6',
   trusd: '#38bdf8',
   susdai: '#8B7355',
+  eusd: '#ff5a1f',
 };
 
 export function poolChartColor(pool: PoolData): string {
