@@ -4323,6 +4323,87 @@ html.home-snap {
   display: block;
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35));
 }
+.pool-card-chain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, rgba(255, 255, 255, 0.62));
+}
+.pool-card-chain img {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.pool-card-yields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 2;
+}
+.pool-card-yield {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 8px 7px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  background: color-mix(in srgb, var(--surface-1) 82%, #000);
+  border: 1px solid var(--border-strong);
+}
+.pool-card-yield--merkl {
+  background: color-mix(in srgb, #111 88%, var(--surface-1));
+}
+.pool-card-yield:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.pool-card-yield__logo {
+  display: block;
+  height: 28px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left center;
+  background: #0a0a0a;
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+.pool-card-yield__value {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.pool-modal__yield-tier--merkl {
+  background: rgba(255, 255, 255, 0.04);
+}
+.pool-modal__venue-logo {
+  height: 22px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  background: #0a0a0a;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.pool-modal__chain-logo {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: -3px;
+  margin-right: 6px;
+}
 .pool-modal__boost-label {
   display: inline-flex;
   align-items: center;
@@ -4727,6 +4808,9 @@ html.home-snap {
   border-radius: var(--radius-3);
   overflow: hidden;
 }
+.pool-modal__yield-grid--pair {
+  grid-template-columns: 1fr 1fr;
+}
 .pool-modal__yield-tier {
   background: var(--surface-1);
   padding: var(--space-2) var(--space-3);
@@ -4756,6 +4840,7 @@ html.home-snap {
 }
 @media (max-width: 640px) {
   .pool-modal__yield-grid { grid-template-columns: 1fr; }
+  .pool-card-yields { grid-template-columns: 1fr 1fr; }
 }
 .pool-modal__chart-wrap {
   background: var(--primary-900);

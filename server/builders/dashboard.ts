@@ -28,6 +28,7 @@ import {
   fetchDunePegKeeperData,
   findDuneRowForPool,
 } from '../services/dune.ts';
+import { applyFablesLive, fetchFablesEusdPool } from '../services/fablesEusd.ts';
 import {
   fetchCurvePools,
   fetchCurveVolumes,
@@ -72,7 +73,7 @@ export async function buildDashboardData(): Promise<DashboardData> {
     ),
   );
 
-  const [dlPools, stableAssets, cg, duneData, curvePoolsByChain, curveVolumesByChain, sdStrats] =
+  const [dlPools, stableAssets, cg, duneData, curvePoolsByChain, curveVolumesByChain, sdStrats, fablesEusd] =
     await Promise.all([
     fetchDefiLlamaYields(),
     fetchDefiLlamaStablecoins(),
@@ -82,6 +83,7 @@ export async function buildDashboardData(): Promise<DashboardData> {
     Promise.all(chainsWithCurve.map((c) => fetchCurveVolumes(c))),
     // Non-blocking: 4s timeout + never rejects the whole build.
     fetchStakeDaoCurveStrategies().catch(() => [] as Awaited<ReturnType<typeof fetchStakeDaoCurveStrategies>>),
+    fetchFablesEusdPool(),
   ]);
 
   const curvePools = curvePoolsByChain.flat();
@@ -107,6 +109,8 @@ export async function buildDashboardData(): Promise<DashboardData> {
   const pools: PoolData[] = (
     await Promise.all(
       POOL_REGISTRY.map(async (entry: PoolRegistryEntry) => {
+    if (entry.venue === 'fables') return applyFablesLive(entry, fablesEusd);
+
     // 1. Curve primary (pools + volumes)
     const curvePool = matchCurvePool(curvePools, entry);
     const curveVol = matchCurveVolume(curveVolumes, entry);

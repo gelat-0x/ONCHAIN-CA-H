@@ -61,6 +61,12 @@ export function sanitizeDashboardData(
       return Number.isFinite(v) && v > 0 && v <= 500 ? +v.toFixed(2) : undefined;
     };
     const stakeDaoApr = okLayerApr(p.stakeDaoApr);
+    const swapFeeApr = okLayerApr(p.swapFeeApr);
+    const merklApr = okLayerApr(p.merklApr);
+    const merklWeeklyUsd =
+      p.merklWeeklyUsd != null && Number.isFinite(p.merklWeeklyUsd) && p.merklWeeklyUsd > 0
+        ? Math.round(p.merklWeeklyUsd)
+        : undefined;
     const boostedApr = okLayerApr(p.boostedApr);
     const stakedApr = okLayerApr(p.stakedApr);
     const rewardsApr = okLayerApr(p.rewardsApr);
@@ -108,6 +114,13 @@ export function sanitizeDashboardData(
           }
         : {}),
       ...(stakeDaoApr != null ? { stakeDaoApr } : {}),
+      ...(swapFeeApr != null ? { swapFeeApr } : { swapFeeApr: undefined }),
+      ...(merklApr != null ? { merklApr } : { merklApr: undefined }),
+      ...(merklWeeklyUsd != null ? { merklWeeklyUsd } : {}),
+      ...(p.venue ? { venue: p.venue } : {}),
+      ...(p.fablesUrl ? { fablesUrl: p.fablesUrl } : {}),
+      ...(p.merklUrl ? { merklUrl: p.merklUrl } : {}),
+      ...(p.ownUrl ? { ownUrl: p.ownUrl } : {}),
       ...(boostedApr != null ? { boostedApr } : {}),
       ...(stakedApr != null ? { stakedApr } : {}),
       ...(rewardsApr != null ? { rewardsApr } : {}),

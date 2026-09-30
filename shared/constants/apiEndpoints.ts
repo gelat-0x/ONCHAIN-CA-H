@@ -54,9 +54,22 @@ export const API_ENDPOINTS = {
    * `onlyboost` (Convex routing), and `sidecarPool.id` for Convex stake URLs.
    * https://github.com/stake-dao/api
    */
+  /** Aave V4 public GraphQL — supplied and borrowed totals, not leftover liquidity. */
+  aaveGraphql: 'https://api.v4.aave.com/graphql',
+
+  /**
+   * Fables gateway — Uniswap v4 pool TVL and 24h volume/fees.
+   * https://www.fables.fi/markets/eusd
+   */
+  fables: {
+    poolTvl: 'https://www.fables.fi/api/gw/PoolTvl',
+    poolVolume24h: 'https://www.fables.fi/api/gw/PoolVolume24h',
+  },
+
   stakeDao: {
     curveStrategies: (chainId = 1) =>
       `https://api.stakedao.org/api/strategies/v2/curve/${chainId}.json`,
+    curveVaults: 'https://hub.stakedao.org/v1/vaults?protocol=curve&limit=500',
   },
 } as const;
 

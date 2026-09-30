@@ -1,8 +1,13 @@
 import type { PoolData } from '../types';
 import { hasStakeDaoLink, stakeDaoDisplayApr } from '../../shared/lib/stakeDaoApr.ts';
 
+export function isFablesPool(pool: PoolData): boolean {
+  return pool.venue === 'fables';
+}
+
 /** Best headline yield for PegKeeper cards: Stake DAO APR, else Curve Total APY, else Curve APR. */
 export function pegKeeperDisplayApr(pool: PoolData): number {
+  if (isFablesPool(pool) && pool.merklApr != null && pool.merklApr > 0) return pool.merklApr;
   const stake = stakeDaoDisplayApr(pool);
   if (stake > 0) return stake;
   if (pool.rewardsApy && pool.rewardsApy > 0) return pool.rewardsApy;
@@ -13,7 +18,8 @@ export function pegKeeperDisplayApr(pool: PoolData): number {
 
 export function pegKeeperAprSource(
   pool: PoolData,
-): 'Stake DAO' | 'Curve total APY' | 'Curve total' | 'Curve base' | 'Unavailable' {
+): 'Stake DAO' | 'Curve total APY' | 'Curve total' | 'Curve base' | 'Merkl' | 'Unavailable' {
+  if (isFablesPool(pool) && pool.merklApr != null && pool.merklApr > 0) return 'Merkl';
   if (stakeDaoDisplayApr(pool) > 0) return 'Stake DAO';
   if (pool.rewardsApy && pool.rewardsApy > 0) return 'Curve total APY';
   if (pool.rewardsApr && pool.rewardsApr > 0) return 'Curve total';

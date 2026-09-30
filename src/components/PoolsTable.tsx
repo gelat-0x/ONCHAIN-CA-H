@@ -89,8 +89,13 @@ export function PoolsTable({ pools, totalTvl }: PoolsTableProps) {
                 </td>
                 <td className="val-muted">{pool.since ?? '—'}</td>
                 <td>
-                  <a href={pool.curveUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost-sm">
-                    Curve ↗
+                  <a
+                    href={pool.venue === 'fables' ? (pool.fablesUrl ?? pool.curveUrl) : pool.curveUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-ghost-sm"
+                  >
+                    {pool.venue === 'fables' ? 'Fables ↗' : 'Curve ↗'}
                   </a>
                 </td>
               </tr>

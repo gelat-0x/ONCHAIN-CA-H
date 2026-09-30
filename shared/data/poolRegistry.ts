@@ -1,5 +1,5 @@
 /**
- * Canonical frxUSD PegKeeper pool registry — 30 pools (September 2026)
+ * Canonical frxUSD PegKeeper pool registry (September 2026)
  * Sources: Dune (stablescarab/frax-frxusd-pegkeeper-pools), Frax bi-weekly reports, Curve API
  * https://dune.com/stablescarab/frax-frxusd-pegkeeper-pools
  */
@@ -28,6 +28,11 @@ export interface PoolRegistryEntry {
    * - Dune PegKeeper query matching (address-based)
    */
   curvePoolAddress?: string;
+  /** Non-Curve venue. `fables` is the eUSD / frxUSD pool on Robinhood Chain. */
+  venue?: 'fables';
+  fablesUrl?: string;
+  merklUrl?: string;
+  ownUrl?: string;
 }
 
 export const POOL_REGISTRY: PoolRegistryEntry[] = [
@@ -535,6 +540,26 @@ export const POOL_REGISTRY: PoolRegistryEntry[] = [
     curveUrl: 'https://curve.fi',
     curvePoolAddress: '0x1Fce0B50C48A7Bf67022a82deC9C26e02683bF52',
   },
+  {
+    id: 'eusd',
+    stablecoin: 'eUSD',
+    name: 'frxUSD / eUSD',
+    partner: 'Own',
+    partnerInitials: 'O',
+    partnerColor: '#ff5a1f',
+    description:
+      "eUSD is Own's overcollateralized stablecoin, minted against eSPY at 150% or more and redeemable for $1 of eSPY. This pair trades on Fables, a Uniswap v4 pool on Robinhood Chain.",
+    chain: 'Robinhood Chain',
+    since: '2026-09',
+    dlSymbols: [],
+    duneTvlFallback: 20_204,
+    duneFrxUsdTvlFallback: 9_376,
+    curveUrl: 'https://www.fables.fi/markets/eusd',
+    venue: 'fables',
+    fablesUrl: 'https://www.fables.fi/markets/eusd',
+    merklUrl: 'https://app.merkl.xyz/opportunities/8537301425693662925',
+    ownUrl: 'https://own.money/',
+  },
 ];
 
 export const DUNE_BASELINE = {
@@ -605,5 +630,9 @@ export function registryToPoolData(
     tvlHistory7d: generateTvlHistory(Math.round(tvl)),
     status: tvl > 1000 ? 'ACTIVE' : 'ALERT',
     curveUrl: entry.curveUrl,
+    ...(entry.venue ? { venue: entry.venue } : {}),
+    ...(entry.fablesUrl ? { fablesUrl: entry.fablesUrl } : {}),
+    ...(entry.merklUrl ? { merklUrl: entry.merklUrl } : {}),
+    ...(entry.ownUrl ? { ownUrl: entry.ownUrl } : {}),
   };
 }

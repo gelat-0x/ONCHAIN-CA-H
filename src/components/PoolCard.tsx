@@ -2,11 +2,19 @@ import type { PoolData } from '../types';
 import { MiniSparkline } from './charts/MiniSparkline';
 import { formatUsd } from '../lib/formatUsd';
 import { formatPoolApr, poolChartColor } from '../lib/poolChartColor';
-import { pegKeeperAprMetricLabel, pegKeeperAprSource, pegKeeperDisplayApr } from '../lib/pegKeeperApr';
+import { isFablesPool, pegKeeperAprMetricLabel, pegKeeperAprSource, pegKeeperDisplayApr } from '../lib/pegKeeperApr';
 import stakeDaoBoost from '../assets/stakedao-boost.png';
+import fablesMark from '../assets/venues/fables.png';
+import merklMark from '../assets/venues/merkl.png';
+import robinhoodMark from '../assets/venues/robinhood.png';
 import type { PoolTag } from '../lib/poolTags';
 import { TokenLogo } from './TokenLogo';
 import { HubShareRing } from './HubShareRing';
+
+function formatFineApr(apr: number | undefined): string {
+  if (apr == null || !Number.isFinite(apr) || apr <= 0) return '—';
+  return `${apr.toFixed(2)}%`;
+}
 
 function aprClass(apr: number): string {
   if (apr > 10) return 'val-green';
@@ -42,6 +50,7 @@ export function PoolCard({
   const displayApr = pegKeeperDisplayApr(pool);
   const aprSource = pegKeeperAprSource(pool);
   const aprMetricLabel = pegKeeperAprMetricLabel(pool);
+  const fables = isFablesPool(pool);
   const shareTip =
     pool.frxUsdSharePct != null ? `${pool.frxUsdSharePct.toFixed(1)}% of pool` : undefined;
 
@@ -68,7 +77,15 @@ export function PoolCard({
       }
     >
       <div className="pool-card-top">
-        <div className="pool-card-pair">{pool.name}</div>
+        <div>
+          <div className="pool-card-pair">{pool.name}</div>
+          {fables && (
+            <span className="pool-card-chain">
+              <img src={robinhoodMark} alt="" />
+              Robinhood Chain
+            </span>
+          )}
+        </div>
         <div className="pool-card-mark">
           <TokenLogo
             symbol={pool.stablecoin ?? pool.name.split('/')[1]?.trim() ?? pool.id}
@@ -103,11 +120,43 @@ export function PoolCard({
         />
       </div>
 
+      {fables && (
+        <div className="pool-card-yields">
+          <a
+            className="pool-card-yield"
+            href={pool.fablesUrl ?? 'https://www.fables.fi/markets/eusd'}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img className="pool-card-yield__logo" src={fablesMark} alt="Fables" />
+            <span className="metric-label">Swap fees</span>
+            <span className={`pool-card-yield__value tabular-nums ${aprClass(pool.swapFeeApr ?? 0)}`}>
+              {formatFineApr(pool.swapFeeApr)}
+            </span>
+          </a>
+          <a
+            className="pool-card-yield pool-card-yield--merkl"
+            href={pool.merklUrl ?? 'https://app.merkl.xyz/opportunities/8537301425693662925'}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img className="pool-card-yield__logo" src={merklMark} alt="Merkl" />
+            <span className="metric-label">Merkl</span>
+            <span className={`pool-card-yield__value tabular-nums ${aprClass(pool.merklApr ?? 0)}`}>
+              {formatFineApr(pool.merklApr)}
+            </span>
+          </a>
+        </div>
+      )}
+
       <div className="pool-card-metrics">
         <div className="pool-metric">
           <span className="metric-label">TVL</span>
           <span className="metric-value val-green tabular-nums">{formatUsd(pool.tvl)}</span>
         </div>
+        {!fables && (
         <div className="pool-metric pool-metric--apr">
           <span className="metric-label">{aprMetricLabel}</span>
           <span className="metric-value-row">
@@ -126,13 +175,18 @@ export function PoolCard({
             )}
           </span>
         </div>
+        )}
         <div className="pool-metric">
           <span className="metric-label">Vol 24h</span>
           <span className="metric-value tabular-nums">{formatUsd(pool.volume24h)}</span>
         </div>
         <div
           className="pool-metric"
-          title="Current frxUSD-side liquidity reported by Curve."
+          title={
+            fables
+              ? 'frxUSD currently sitting in the Fables pool.'
+              : 'Current frxUSD-side liquidity reported by Curve.'
+          }
         >
           <span className="metric-label">frxUSD in pool</span>
           <span className="metric-value-row">

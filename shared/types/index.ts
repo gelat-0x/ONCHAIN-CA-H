@@ -28,7 +28,19 @@ export interface PoolData {
   /** Current frxUSD-side value divided by the complete Curve pool TVL. */
   frxUsdSharePct?: number;
   /** Identifies the live source used for pool composition. */
-  frxUsdBalanceSource?: 'curve' | 'onchain-rpc';
+  frxUsdBalanceSource?: 'curve' | 'onchain-rpc' | 'fables';
+  /**
+   * Fables Uniswap v4 pool (Robinhood Chain). Curve and Stake DAO fields stay empty.
+   * `swapFeeApr` is 24h swap fees / TVL annualized. `merklApr` is Fables' published
+   * weekly Merkl budget against current deposits.
+   */
+  venue?: 'fables';
+  swapFeeApr?: number;
+  merklApr?: number;
+  merklWeeklyUsd?: number;
+  fablesUrl?: string;
+  merklUrl?: string;
+  ownUrl?: string;
   pegDeviation: number[];
   /** 7-day TVL trend ending at current `tvl`. */
   tvlHistory7d: number[];
