@@ -8,6 +8,7 @@ import { studioBackgroundTone } from '../../../shared/constants/studioBackground
 import type { StudioPoolMetric } from './studioRegistry';
 import { TokenLogo } from '../TokenLogo';
 import { StudioCanvasShell } from './StudioCanvasShell';
+import { StudioVenueBadge } from './StudioVenueBadge';
 
 interface TopPoolsCanvasProps {
   pools: PoolData[];
@@ -50,19 +51,7 @@ export const TopPoolsCanvas = forwardRef<HTMLDivElement, TopPoolsCanvasProps>(
         topicMain={copy.topicMain}
         topicSub={copy.topicSub}
         className="studio-canvas--top-pools"
-        badges={
-          <span className="studio-canvas__badge studio-canvas__badge--curve">
-            Live on Curve
-            <TokenLogo
-              symbol="CRV"
-              fallbackInitials="CR"
-              fallbackColor="#3465a4"
-              size="xs"
-              eager
-              className="studio-canvas__badge-logo"
-            />
-          </span>
-        }
+        badges={<StudioVenueBadge pools={ranked} />}
       >
         <ol className="top-pools-canvas__list">
           {ranked.map((pool, i) => {

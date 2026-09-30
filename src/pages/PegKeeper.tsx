@@ -26,6 +26,7 @@ function scrollToSection(id: string) {
 export function PegKeeperPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [sort, setSort] = useState<PoolSortKey>('tvl');
+  const [query, setQuery] = useState('');
   const [explorePool, setExplorePool] = useState<PoolData | null>(null);
   const [hubPoolId, setHubPoolId] = useState<string | undefined>();
   const [poolsExpanded, setPoolsExpanded] = useState(false);
@@ -44,17 +45,27 @@ export function PegKeeperPage() {
     };
   }, []);
 
-  const visiblePools = useMemo(() => {
+  const sortedPools = useMemo(() => {
     if (!data) return [];
     return filterAndSortPools(data.pools, 'all', sort);
   }, [data, sort]);
 
+  const visiblePools = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sortedPools;
+    return sortedPools.filter((pool) =>
+      [pool.name, pool.stablecoin, pool.partner, pool.chain, pool.id].some((value) =>
+        value?.toLowerCase().includes(q),
+      ),
+    );
+  }, [sortedPools, query]);
+
   useEffect(() => {
-    if (!visiblePools.length) return;
-    if (!hubPoolId || !visiblePools.some((p) => p.id === hubPoolId)) {
-      setHubPoolId(visiblePools[0].id);
+    if (!sortedPools.length) return;
+    if (!hubPoolId || !sortedPools.some((p) => p.id === hubPoolId)) {
+      setHubPoolId(sortedPools[0].id);
     }
-  }, [visiblePools, hubPoolId]);
+  }, [sortedPools, hubPoolId]);
 
   useEffect(() => {
     const el = gridRef.current;
@@ -72,6 +83,7 @@ export function PegKeeperPage() {
     return () => ro.disconnect();
   }, [data]);
 
+  const searching = query.trim().length > 0;
   const previewCount = gridCols * 3;
   const peekCount = gridCols;
   const collapsedCap = previewCount + peekCount;
@@ -83,7 +95,7 @@ export function PegKeeperPage() {
 
   const hub = (
     <FrxUsdHub
-      pools={visiblePools}
+      pools={sortedPools}
       selectedId={hubPoolId}
       onSelect={(p) => setHubPoolId(p.id)}
       onViewPools={() => scrollToSection('pegkeeper-pools')}
@@ -128,13 +140,23 @@ export function PegKeeperPage() {
                     />
                     PegKeeper overview
                   </h2>
-                  <PoolSortControl sort={sort} onSortChange={setSort} />
+                  <div className="pegkeeper-pools__controls">
+                    <input
+                      type="search"
+                      className="pool-search"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search pools"
+                      aria-label="Search pools"
+                    />
+                    <PoolSortControl sort={sort} onSortChange={setSort} />
+                  </div>
                 </div>
                 <div className="pool-grid-block">
                   <div ref={gridRef} className="pool-grid pegkeeper-pools__grid">
                     {visiblePools.map((pool, i) => {
-                      if (!poolsExpanded && hasMorePools && i >= collapsedCap) return null;
-                      const peek = !poolsExpanded && hasMorePools && i >= previewCount;
+                      if (!poolsExpanded && !searching && hasMorePools && i >= collapsedCap) return null;
+                      const peek = !poolsExpanded && !searching && hasMorePools && i >= previewCount;
                       return (
                         <PoolCard
                           key={pool.id}
@@ -147,7 +169,7 @@ export function PegKeeperPage() {
                       );
                     })}
                   </div>
-                  {!poolsExpanded && hasMorePools && (
+                  {!poolsExpanded && !searching && hasMorePools && (
                     <div className="pool-grid-more">
                       <div className="pool-grid-more__veil" aria-hidden />
                       <button
@@ -161,7 +183,7 @@ export function PegKeeperPage() {
                   )}
                 </div>
                 {visiblePools.length === 0 && (
-                  <p className="pool-filter-empty">No pools match this filter.</p>
+                  <p className="pool-filter-empty">No pools match that search.</p>
                 )}
               </section>
 

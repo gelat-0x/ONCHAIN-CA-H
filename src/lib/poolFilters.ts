@@ -34,12 +34,14 @@ export type PoolFilterKey =
   | 'high-apr';
 export type PoolSortKey = 'tvl' | 'apr' | 'volume' | 'since' | 'boost' | 'name';
 
-/** Registry `since` is `YYYY-MM` — higher = newer. */
+/** Registry `since` is `YYYY-MM` or `YYYY-MM-DD`. Higher = newer. A full date ranks after a month-only date in that month. */
 export function sinceSortValue(since?: string): number {
   if (!since) return 0;
-  const m = since.match(/^(\d{4})-(\d{2})$/);
-  if (!m) return 0;
-  return Number(m[1]) * 100 + Number(m[2]);
+  const full = since.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (full) return Number(full[1]) * 10000 + Number(full[2]) * 100 + Number(full[3]);
+  const month = since.match(/^(\d{4})-(\d{2})$/);
+  if (!month) return 0;
+  return Number(month[1]) * 10000 + Number(month[2]) * 100;
 }
 
 export function filterAndSortPools(

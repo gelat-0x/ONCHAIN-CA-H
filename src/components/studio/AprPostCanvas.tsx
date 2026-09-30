@@ -18,6 +18,7 @@ import {
 } from '../../../shared/constants/studioBackgrounds';
 import { TokenLogo } from '../TokenLogo';
 import { StudioCanvasBackground } from './StudioCanvasBackground';
+import { StudioVenueBadge } from './StudioVenueBadge';
 import onlyBoostMark from '../../assets/onlyboost.png';
 
 interface AprPostCanvasProps {
@@ -198,17 +199,7 @@ export const AprPostCanvas = forwardRef<HTMLDivElement, AprPostCanvasProps>(
             </span>
           </div>
           <div className="studio-canvas__badges">
-            <span className="studio-canvas__badge studio-canvas__badge--curve">
-              Live on Curve
-              <TokenLogo
-                symbol="CRV"
-                fallbackInitials="CR"
-                fallbackColor="#3465a4"
-                size="xs"
-                eager
-                className="studio-canvas__badge-logo"
-              />
-            </span>
+            <StudioVenueBadge pools={pools} />
           </div>
         </header>
 
