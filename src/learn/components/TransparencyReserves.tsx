@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useInView } from "motion/react";
 import { PieChart, Pie, Cell, Sector } from "recharts";
 import {
-  Shield, ChevronDown, ChevronUp, ExternalLink, RefreshCw,
+  ChevronDown, ChevronUp, ExternalLink, RefreshCw,
 } from "lucide-react";
 import { useFrxUsdLive } from "@learn/hooks/useFrxUsdLive";
 import { assetLogoSrc } from "@learn/lib/deskMarks";
@@ -269,7 +269,14 @@ const SupplyVsBacking = ({ circulation, reserves, assets }: {
       {/* Circulation bar */}
       <div>
         <div className="flex justify-between items-baseline mb-1.5">
-          <span className="text-xs text-[hsl(0,0%,60%)]">Dollars in use</span>
+          <button
+            type="button"
+            className="reserve-jump"
+            onClick={() => document.getElementById("new-dollars")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            Dollars in use
+            <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+          </button>
           <span className="text-sm font-mono text-[hsl(0,0%,90%)]">${(circulation / 1_000_000).toFixed(2)}m</span>
         </div>
         <div className="h-3 bg-[hsl(0,0%,10%)] rounded-full overflow-hidden">
@@ -455,56 +462,46 @@ const TransparencyReserves = () => {
             data.reserves > 0
               ? `$${(data.reserves / 1_000_000).toFixed(1)}m backing the dollar`
               : "Backing the dollar";
+          const marks = tickers
+            .map((ticker) => ({ ticker, src: assetLogoSrc(ticker) }))
+            .filter((item): item is { ticker: string; src: string } => Boolean(item.src));
           if (!open) {
-            const tease = tickers
-              .map((ticker) => ({ ticker, src: assetLogoSrc(ticker) }))
-              .filter((item): item is { ticker: string; src: string } => Boolean(item.src))
-              .slice(0, 5);
             return (
-              <div className="reserve-tease">
-                <div className="reserve-tease__marks" aria-hidden>
-                  {tease.map((item) => (
-                    <img
-                      key={item.ticker}
-                      src={item.src}
-                      alt=""
-                      className={item.ticker === "USDB" ? "is-plate" : ""}
-                    />
-                  ))}
-                </div>
-                <h2>Real money behind it</h2>
-                <p className="reserve-tease__amt">{amount}</p>
-                <p className="reserve-tease__line">
-                  Short-term U.S. government assets stand behind every dollar.
-                </p>
-                <button type="button" className="reserve-more" aria-expanded={false} onClick={() => setOpen(true)}>
-                  See more
-                </button>
+              <div className="reserve-gate reserve-gate--still">
+                <span className="reserve-orbit" aria-hidden>
+                  <span className="reserve-orbit__ring">
+                    {marks.map((item, i, list) => (
+                      <span key={item.ticker} className="reserve-orbit__slot" style={{ ["--i" as string]: i, ["--n" as string]: list.length }}>
+                        <img src={item.src} alt="" className={item.ticker === "USDB" ? "is-plate" : ""} />
+                      </span>
+                    ))}
+                  </span>
+                </span>
+                <span className="reserve-gate__copy">
+                  <b>Real money behind it</b>
+                  <small>{amount}</small>
+                  <button type="button" className="reserve-more" aria-expanded={false} onClick={() => setOpen(true)}>
+                    See more
+                  </button>
+                </span>
               </div>
             );
           }
           return (
-            <div className="reserve-gate reserve-gate--still">
-              <span className="reserve-orbit" aria-hidden>
-                <span className="reserve-orbit__ring">
-                  {tickers.map((ticker, i, list) => {
-                    const src = assetLogoSrc(ticker);
-                    if (!src) return null;
-                    return (
-                      <span key={ticker} className="reserve-orbit__slot" style={{ ["--i" as string]: i, ["--n" as string]: list.length }}>
-                        <img src={src} alt="" className={ticker === "USDB" ? "is-plate" : ""} />
-                      </span>
-                    );
-                  })}
-                </span>
-              </span>
-              <span className="reserve-gate__copy">
-                <b>Real money behind it</b>
-                <small>{amount}</small>
-                <button type="button" className="reserve-more" aria-expanded onClick={() => setOpen(false)}>
-                  See less
-                </button>
-              </span>
+            <div className="reserve-row">
+              <div className="reserve-row__marks" aria-hidden>
+                {marks.map((item) => (
+                  <img key={item.ticker} src={item.src} alt="" className={item.ticker === "USDB" ? "is-plate" : ""} />
+                ))}
+              </div>
+              <h2>Real money behind it</h2>
+              <p className="reserve-tease__amt">{amount}</p>
+              <p className="reserve-tease__line">
+                Short-term U.S. government assets stand behind every dollar.
+              </p>
+              <button type="button" className="reserve-more" aria-expanded onClick={() => setOpen(false)}>
+                See less
+              </button>
             </div>
           );
         })()}
@@ -564,31 +561,16 @@ const TransparencyReserves = () => {
               />
             ))}
 
-            {/* Proof of reserves link */}
-            <a href="https://oracles.chaoslabs.xyz/por-feeds/frxusd_por" target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 mt-4 p-4 rounded-2xl border border-[hsl(0,0%,14%)]/30 bg-[hsl(0,0%,7%)]/20 
-                text-xs text-[hsl(0,0%,55%)] hover:text-[hsl(0,0%,95%)] hover:bg-[hsl(0,0%,7%)]/50 transition-all">
-              <Shield className="w-3.5 h-3.5" />
-              Independent Proof of Reserves (Chaos Labs) →
+            <a href="https://frax.com/Transparency" target="_blank" rel="noopener noreferrer"
+              className="group flex items-center justify-center gap-2 mt-4 p-4 rounded-2xl border border-[hsl(0,0%,14%)]/30 bg-[hsl(0,0%,7%)]/20
+                text-sm text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,95%)] hover:bg-[hsl(0,0%,7%)]/50 transition-all">
+              <span className="relative">
+                View full transparency
+                <span className="absolute bottom-0 left-0 w-0 h-px bg-[hsl(0,0%,95%)] group-hover:w-full transition-all duration-300" />
+              </span>
+              <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </a>
           </div>
-        </motion.div>
-
-        {/* CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="mt-16 text-center"
-        >
-          <a href="https://frax.com/Transparency" target="_blank" rel="noopener noreferrer"
-            className="group inline-flex items-center gap-2 text-sm text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,95%)] transition-colors">
-            <span className="relative">
-              View Full Transparency
-              <span className="absolute bottom-0 left-0 w-0 h-px bg-[hsl(0,0%,95%)] group-hover:w-full transition-all duration-300" />
-            </span>
-            <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </a>
         </motion.div>
         </>
         ) : null}

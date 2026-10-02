@@ -1,4 +1,5 @@
 .room {
+  scroll-margin-top: 5.5rem;
   --ink: hsl(0 0% 96%);
   --mute: hsl(0 0% 52%);
   --line: hsl(0 0% 100% / 0.08);
@@ -177,6 +178,53 @@
   font-weight: 500;
   letter-spacing: -0.04em;
   line-height: 1.05;
+}
+
+.room__rail strong.is-settling {
+  animation: room-settle 0.48s ease;
+}
+
+@keyframes room-settle {
+  0% { filter: blur(7px); opacity: 0.35; }
+  100% { filter: blur(0); opacity: 1; }
+}
+
+.room__skel {
+  display: block;
+  width: 5.2rem;
+  height: 1.35rem;
+  margin-top: 0.15rem;
+  border-radius: 7px;
+  background: linear-gradient(90deg, hsl(0 0% 100% / 0.05), hsl(0 0% 100% / 0.14), hsl(0 0% 100% / 0.05));
+  background-size: 180% 100%;
+  animation: room-skel 1.05s ease-in-out infinite;
+}
+
+@keyframes room-skel {
+  0% { background-position: 100% 0; }
+  100% { background-position: -80% 0; }
+}
+
+.room__peak { min-width: 0; }
+.room__peak-slide span {
+  display: block;
+  margin-bottom: 0.28rem;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.room__peak-slide strong {
+  display: block;
+  font-size: clamp(1.15rem, 1.5vw, 1.45rem);
+}
+.room__peak-slide em {
+  display: block;
+  margin-top: 0.2rem;
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--mute);
 }
 
 .room__rail-side strong {
@@ -1161,6 +1209,7 @@
   }
 
   .adopt__fields { grid-template-columns: 1fr; }
+  .adopt__ring { grid-template-columns: 1fr; justify-items: center; }
   .adopt__legend { gap: 0.45rem 0.8rem; }
 }
 
@@ -1292,6 +1341,48 @@
 }
 
 .adopt__field--lending > strong { color: hsl(0 0% 96%); }
+
+.adopt__ring {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 1.15rem 1.35rem;
+  align-items: center;
+}
+.adopt__donut-wrap {
+  position: relative;
+  width: 148px;
+  height: 148px;
+}
+.adopt__donut {
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  -webkit-mask: radial-gradient(circle, transparent 48px, #000 49px);
+  mask: radial-gradient(circle, transparent 48px, #000 49px);
+}
+.adopt__donut-wrap span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  text-align: center;
+  pointer-events: none;
+}
+.adopt__donut-wrap em {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.adopt__donut-wrap b {
+  font-size: 0.95rem;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+}
 
 .adopt__bar {
   display: flex;

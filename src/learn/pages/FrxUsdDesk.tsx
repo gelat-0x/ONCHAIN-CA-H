@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import Seo from '@learn/components/Seo';
 import { DeskFeed } from '@learn/components/desk/DeskFeed';
@@ -8,19 +9,12 @@ import { DeskMap } from '@learn/components/desk/DeskMap';
 import { DeskSpark } from '@learn/components/desk/DeskSpark';
 import { useFrxUsdIssuance } from '@learn/hooks/useFrxUsdIssuance';
 import { useFrxUsdLive } from '@learn/hooks/useFrxUsdLive';
-import { useHeroApr } from '@learn/hooks/useHeroApr';
-import type { FrxUsdMintRedeemEvent } from '../../types';
+import type { FrxUsdMintRedeemEvent, FrxUsdWindowPeak } from '../../types';
 import { formatUsdMetric } from '../../lib/formatUsd';
 import { assetLogoSrc } from '../lib/deskMarks';
 import '../desk.css';
 
 type WindowSpan = '24h' | '7d' | 'All';
-
-const WINDOW_CAPTION: Record<WindowSpan, string> = {
-  '24h': 'Last 24 hours',
-  '7d': 'Last 7 days',
-  All: 'All time',
-};
 
 function signedUsd(n: number): string {
   if (!Number.isFinite(n) || n === 0) return '$0';
@@ -37,12 +31,75 @@ function sumDaily(days: { mint: number; redeem: number; net: number }[] | undefi
   };
 }
 
+function peakCopy(span: WindowSpan, side: 'mint' | 'burn', peak: FrxUsdWindowPeak) {
+  const basis = side === 'mint' ? peak.mintBasis : peak.redeemBasis;
+  const amount = side === 'mint' ? peak.mint : peak.redeem;
+  const window =
+    span === '24h' ? 'the last 24 hours' : span === '7d' ? 'the last 7 days' : 'on record';
+  const verb = side === 'mint' ? 'minted' : 'burned';
+  const title = basis === 'day' ? `Biggest day ${verb}` : `Biggest amount ${verb}`;
+  return { title, window, amount, key: `${span}-${side}-${basis}` };
+}
+
+function PeakCard({
+  span,
+  peak,
+}: {
+  span: WindowSpan;
+  peak?: FrxUsdWindowPeak;
+}) {
+  const [side, setSide] = useState<'mint' | 'burn'>('mint');
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setSide((current) => (current === 'mint' ? 'burn' : 'mint'));
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  if (!peak) {
+    return (
+      <article className="room__rail-side room__peak">
+        <span>Biggest mint</span>
+        <strong><i className="room__skel" /></strong>
+      </article>
+    );
+  }
+
+  const copy = peakCopy(span, side, peak);
+  return (
+    <article className="room__rail-side room__peak">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={copy.key}
+          className="room__peak-slide"
+          initial={{ opacity: 0, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, filter: 'blur(6px)' }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <span>{copy.title}</span>
+          <strong className="tabular-nums">{formatUsdMetric(copy.amount)}</strong>
+          <em>{copy.window}</em>
+        </motion.div>
+      </AnimatePresence>
+    </article>
+  );
+}
+
 export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean }) {
   const { data, error } = useFrxUsdIssuance();
   const live = useFrxUsdLive();
-  const { apr } = useHeroApr();
   const [span, setSpan] = useState<WindowSpan>('24h');
+  const [settling, setSettling] = useState(false);
   const [held, setHeld] = useState<FrxUsdMintRedeemEvent | null>(null);
+
+  const chooseSpan = (next: WindowSpan) => {
+    if (next === span) return;
+    setSpan(next);
+    setSettling(true);
+    window.setTimeout(() => setSettling(false), 480);
+  };
 
   const circulating = data?.circulating || (!live.loading ? live.circulation : 0);
   const reserves = !live.loading ? live.reserves : 0;
@@ -68,20 +125,24 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
 
   const tape = useMemo(() => {
     const events = data?.recentEvents ?? [];
-    if (span === 'All') return events;
-    const windowMs = span === '24h' ? 86_400_000 : 7 * 86_400_000;
-    const cut = Date.now() - windowMs;
+    const cut = Date.now() - 86_400_000;
     return events.filter((event) => event.ts >= cut);
-  }, [data?.recentEvents, span]);
+  }, [data?.recentEvents]);
 
   const chains = useMemo(() => {
-    const rows = [...(data?.chainSupply ?? [])];
-    const robinhood = data?.supplyMap?.adoption?.robinhoodUsd ?? 0;
-    if (robinhood > 0 && !rows.some((row) => row.chain.toLowerCase().includes('robinhood'))) {
-      rows.push({ chain: 'Robinhood Chain', circulating: robinhood, sharePct: 0 });
+    const mapped = data?.supplyMap?.chains;
+    if (mapped?.length) {
+      return mapped.map((row) => ({
+        chain: row.chain,
+        circulating: row.circulating,
+        sharePct: row.sharePct,
+      }));
     }
-    return rows.sort((a, b) => b.circulating - a.circulating);
-  }, [data?.chainSupply, data?.supplyMap?.adoption?.robinhoodUsd]);
+    return [...(data?.chainSupply ?? [])].sort((a, b) => b.circulating - a.circulating);
+  }, [data?.supplyMap?.chains, data?.chainSupply]);
+
+  const ready = Boolean(data);
+  const peak = span === '24h' ? data?.peaks?.h24 : span === '7d' ? data?.peaks?.d7 : data?.peaks?.all;
 
   useEffect(() => {
     if (held && !tape.some((event) => event.id === held.id)) setHeld(null);
@@ -108,7 +169,7 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
       <section className="room__intro" aria-labelledby="new-dollars-heading">
         <div className="room__intro-copy">
           <h2 id="new-dollars-heading" className="room__title">
-            New dollars
+            Mint & Burn Factory
           </h2>
           <p className="room__line">
             Minted dollars leave the center. Burned dollars come back. Tap one to see the transaction.
@@ -123,13 +184,12 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
                 role="tab"
                 aria-selected={span === key}
                 className={span === key ? 'is-on' : ''}
-                onClick={() => setSpan(key)}
+                onClick={() => chooseSpan(key)}
               >
                 {key}
               </button>
             ))}
           </div>
-          <p className="room__window-caption">{WINDOW_CAPTION[span]}</p>
           <p className="room__pulse">
             <span aria-hidden="true" />
             Live
@@ -140,24 +200,27 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
       <section className="room__rail" aria-label="Mint figures">
         <article>
           <span>Minted</span>
-          <strong className="tabular-nums room__mint">{formatUsdMetric(minted)}</strong>
+          <strong className={`tabular-nums room__mint${settling ? ' is-settling' : ''}`}>
+            {ready ? formatUsdMetric(minted) : <i className="room__skel" />}
+          </strong>
         </article>
         <article>
           <span>Redeemed</span>
-          <strong className="tabular-nums room__burn">{formatUsdMetric(redeemed)}</strong>
+          <strong className={`tabular-nums room__burn${settling ? ' is-settling' : ''}`}>
+            {ready ? formatUsdMetric(redeemed) : <i className="room__skel" />}
+          </strong>
         </article>
         <article>
           <span>Net</span>
-          <strong className={`tabular-nums ${net < 0 ? 'room__dim' : ''}`}>{signedUsd(net)}</strong>
+          <strong className={`tabular-nums${net < 0 ? ' room__dim' : ''}${settling ? ' is-settling' : ''}`}>
+            {ready ? signedUsd(net) : <i className="room__skel" />}
+          </strong>
         </article>
         <article className="room__rail-side">
           <span>Backing</span>
           <strong className="tabular-nums">{backing ? `${backing.toFixed(2)}%` : '—'}</strong>
         </article>
-        <article className="room__rail-side">
-          <span>Reserve yield</span>
-          <strong className="tabular-nums">{apr ? `${apr.toFixed(2)}%` : '—'}</strong>
-        </article>
+        <PeakCard span={span} peak={peak} />
       </section>
 
       {error && !data ? (
@@ -190,7 +253,7 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
         <div>
           <div className="room__panel-head">
             <h2>Where supply sits</h2>
-            <p>Each square is one chain. The bar is its share of circulating frxUSD. Open a chain to see every venue.</p>
+            <p>Each square is one chain. Open it for the DEXes, PegKeepers, lending markets, and balances on that chain.</p>
           </div>
           <AdoptionMap adoption={data?.supplyMap?.adoption} />
           <SupplyBoard map={data?.supplyMap} chains={chains} />
@@ -202,10 +265,8 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
           </div>
           <ol className="room__routes">
             {(data?.routes ?? []).map((route) => {
-              const mint =
-                span === '24h' ? route.mint24h : span === '7d' ? route.mint7d : minted;
-              const burn =
-                span === '24h' ? route.redeem24h : span === '7d' ? route.redeem7d : redeemed;
+              const mint = route.mint24h;
+              const burn = route.redeem24h;
               const total = Math.max(1, mint + burn);
               return (
                 <li key={route.id}>
@@ -231,7 +292,7 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
       <section className="room__history">
         <div className="room__panel-head">
           <h2>Each day</h2>
-          <p>New dollars above the line. Dollars burned below.</p>
+          <p>Net change in circulating supply. New supply above the line. Supply that left below.</p>
         </div>
         <DeskSpark days={data?.daily ?? []} />
       </section>

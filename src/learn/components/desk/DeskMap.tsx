@@ -384,7 +384,15 @@ export function DeskMap({
           />
           <span className="desk-map__name">{n.label}</span>
           {n.live ? (
-            <span className="desk-map__pct">{n.sharePct.toFixed(n.sharePct >= 10 ? 0 : 1)}%</span>
+            <span className="desk-map__pct">
+              {n.sharePct >= 10
+                ? `${Math.round(n.sharePct)}%`
+                : n.sharePct >= 1
+                  ? `${n.sharePct.toFixed(1)}%`
+                  : n.sharePct > 0
+                    ? `${n.sharePct.toFixed(2)}%`
+                    : '—'}
+            </span>
           ) : null}
         </div>
       ))}

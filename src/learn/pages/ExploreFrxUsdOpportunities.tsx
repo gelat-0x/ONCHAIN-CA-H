@@ -8,12 +8,10 @@ import Seo from '@learn/components/Seo';
 import stakeDaoMark from '../../assets/stakedao-boost.png';
 import { fetchFrxUsdOpportunities } from '../../services/api';
 import {
-  FRXUSD_ACTIVE_PLACES,
-  FRXUSD_OTHER_PLACES,
   fallbackOpportunityLive,
 } from '@shared/data/frxUsdOpportunities.ts';
 import type { FrxUsdOppDoor, FrxUsdOppLive, FrxUsdOppRow } from '../../types';
-import { chainLogo, chainLogoByName, protocolLogo } from '@learn/lib/oppLogos.ts';
+import { chainLogoByName, protocolLogo } from '@learn/lib/oppLogos.ts';
 
 function fmtApy(n: number) {
   if (!Number.isFinite(n) || n <= 0) return '—';
@@ -36,7 +34,7 @@ const DOORS: Array<{ id: FrxUsdOppDoor; title: string; line: string; logos: stri
   {
     id: 'loop',
     title: 'Looping strategies',
-    line: 'Borrow frxUSD against a yield asset and hold both in one account.',
+    line: 'Post a token that already earns, then borrow frxUSD against it. The loop exists for the gap: that yield is meant to beat the cost of the loan.',
     logos: ['frax'],
   },
   {
@@ -50,6 +48,12 @@ const DOORS: Array<{ id: FrxUsdOppDoor; title: string; line: string; logos: stri
     title: 'PegKeeper LP',
     line: 'Add frxUSD and another dollar on Curve. Uniswap dollar pairs are listed apart.',
     logos: ['curve', 'uniswap'],
+  },
+  {
+    id: 'rwa',
+    title: 'Tokenized assets',
+    line: 'Pair frxUSD with a tokenized stock or bond on GigaDEX. You earn the swap fee when someone trades.',
+    logos: ['frax'],
   },
   {
     id: 'boost',
@@ -150,7 +154,6 @@ const HeroRotator = ({ live }: { live: FrxUsdOppLive }) => {
     () => [
       `${live.liveCount} opportunities`,
       `${fmtApy(live.averageApy)} average APR`,
-      `Live across ${FRXUSD_ACTIVE_PLACES.length}+ chains`,
     ],
     [live.liveCount, live.averageApy],
   );
@@ -239,6 +242,9 @@ const MarketList = ({
 }) => {
   const spec = DOORS.find((item) => item.id === door);
   const [picked, setPicked] = useState<string | null>(null);
+  const best = [...rows]
+    .filter((row) => row.apy > 0)
+    .sort((a, b) => b.apy - a.apy || (b.tvlUsd ?? 0) - (a.tvlUsd ?? 0))[0];
   const groups: string[] = [];
   for (const row of rows) {
     const name = row.group ?? row.name;
@@ -260,7 +266,7 @@ const MarketList = ({
               .map((row) => {
                 const open = picked === row.id;
                 return (
-                  <li key={row.id} className={open ? 'is-open' : undefined}>
+                  <li key={row.id} className={`${open ? 'is-open' : ''}${best?.id === row.id ? ' is-featured' : ''}`}>
                     <button
                       type="button"
                       className="fxo-pick"
@@ -272,7 +278,9 @@ const MarketList = ({
                         <b>{row.name}</b>
                         <ChainChip name={row.chain} />
                       </span>
-                      <strong>{row.apy > 0 ? fmtApy(row.apy) : 'On venue'}</strong>
+                      <strong className={row.apy > 0 ? 'is-rate' : 'is-rate is-soft'}>
+                        {row.apy > 0 ? fmtApy(row.apy) : 'See rate'}
+                      </strong>
                     </button>
                     {open ? (
                       <div className="fxo-market-detail">
@@ -344,8 +352,6 @@ const DoorWindow = ({
 const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }) => {
   const [live, setLive] = useState<FrxUsdOppLive>(fallbackOpportunityLive);
   const [door, setDoor] = useState<FrxUsdOppDoor | null>(null);
-  const [placesOpen, setPlacesOpen] = useState(false);
-  const [mintOpen, setMintOpen] = useState(false);
   const [stakeOpen, setStakeOpen] = useState(false);
 
   useEffect(() => {
@@ -383,66 +389,18 @@ const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }
           <h1>Use your frxUSD</h1>
           <p className="fxo-hero__lede">Put it in a vault or pair it with another token.</p>
           <HeroRotator live={live} />
-
-          <button
-            type="button"
-            className="fxo-places-link"
-            aria-expanded={placesOpen}
-            onClick={() => {
-              setPlacesOpen((v) => {
-                if (v) setMintOpen(false);
-                return !v;
-              });
-            }}
-          >
-            {FRXUSD_ACTIVE_PLACES.length} chains with live rates
-          </button>
-          {placesOpen ? (
-            <div className="fxo-places-wrap">
-              <p>These four chains have live rates on this page.</p>
-              <ul className="fxo-places">
-                {FRXUSD_ACTIVE_PLACES.map((c) => {
-                  const src = chainLogo(c.id);
-                  return (
-                    <li key={c.id} className="is-live">
-                      {src ? <img src={src} alt="" /> : null}
-                      {c.name}
-                    </li>
-                  );
-                })}
-              </ul>
-              <button
-                type="button"
-                className="fxo-places__more"
-                onClick={() => setMintOpen((v) => !v)}
-                aria-expanded={mintOpen}
-              >
-                {mintOpen ? 'Hide' : 'Show'} {FRXUSD_OTHER_PLACES.length} more chains where you can mint
-              </button>
-              {mintOpen ? (
-                <ul className="fxo-places">
-                  {FRXUSD_OTHER_PLACES.map((c) => {
-                    const src = chainLogo(c.id);
-                    return (
-                      <li key={c.id}>
-                        {src ? <img src={src} alt="" /> : null}
-                        {c.name}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
         </header>
 
         <section className="fxo-doors" aria-label="Ways to use frxUSD">
           {DOORS.map((item) => {
             const rows = markets.filter((row) => row.door === item.id);
-            const deep = rows
+            const pool =
+              item.id === 'fx'
+                ? rows.filter((row) => row.group === 'Curve' || row.group === 'Aerodrome')
+                : rows;
+            const deep = [...(pool.length ? pool : rows)]
               .filter((row) => row.apy > 0)
-              .filter((row) => item.id !== 'fx' || row.group === 'Curve' || row.group === 'Aerodrome')
-              .sort((a, b) => (b.tvlUsd ?? 0) - (a.tvlUsd ?? 0))[0];
+              .sort((a, b) => b.apy - a.apy || (b.tvlUsd ?? 0) - (a.tvlUsd ?? 0))[0];
             return (
               <button
                 key={item.id}
@@ -571,7 +529,7 @@ const StakeSheet = ({
                       <b>{p.pair}</b>
                       <small>{p.chain}</small>
                     </span>
-                    <em>{fmtApy(p.apy)}</em>
+                    <em className="is-rate">{fmtApy(p.apy)}</em>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </a>
                 </li>

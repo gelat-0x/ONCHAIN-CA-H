@@ -31,28 +31,11 @@ function chainKey(name: string): string {
   return CHAIN_ALIAS[raw] ?? raw;
 }
 
-function isOutside(chain: string): boolean {
-  return chain.toLowerCase().includes('robinhood');
-}
-
-function chainRole(chain: string): 'home' | 'fraxnet' | 'outside' | 'other' {
-  const key = chainKey(chain);
-  if (key.includes('robinhood')) return 'outside';
-  if (key === 'otherchains') return 'other';
-  if (key === 'ethereum' || key === 'fraxtal') return 'home';
-  return 'fraxnet';
-}
-
-function shareOf(block: FrxUsdSupplyChainBlock): number {
-  if (isOutside(block.chain)) return 0;
-  return block.sharePct > 0 ? block.sharePct : 0;
-}
-
-function formatShare(share: number, outside: boolean): string {
-  if (outside) return 'Outside';
+function formatShare(share: number): string {
   if (!(share > 0)) return '—';
-  const whole = share >= 10 && Math.abs(share - Math.round(share)) < 0.05;
-  return `${share.toFixed(whole ? 0 : 1)}%`;
+  if (share >= 10 && Math.abs(share - Math.round(share)) < 0.05) return `${Math.round(share)}%`;
+  if (share >= 1) return `${share.toFixed(1)}%`;
+  return `${share.toFixed(2)}%`;
 }
 
 function placeLogo(place: FrxUsdSupplyPlace, chain: string): string | undefined {
@@ -87,15 +70,21 @@ const VENUE_GROUPS: Array<{
     test: (place) => place.kind === 'pegkeeper',
   },
   {
-    id: 'pools',
-    label: 'Pools',
-    hint: 'Other trading pools on this chain.',
-    test: (place) => place.category === 'pairs' && place.kind !== 'pegkeeper',
+    id: 'dex',
+    label: 'DEXes',
+    hint: 'Trading pools on this chain, including FX markets.',
+    test: (place) => place.category === 'pairs' && place.kind !== 'pegkeeper' && place.use !== 'rwa',
+  },
+  {
+    id: 'rwa',
+    label: 'Tokenized assets',
+    hint: 'frxUSD paired with a tokenized bond, stock, or Frax bond.',
+    test: (place) => place.use === 'rwa',
   },
   {
     id: 'wallets',
-    label: 'In wallets',
-    hint: 'Still held as frxUSD, outside the venues above.',
+    label: 'Held',
+    hint: 'frxUSD on this chain that is not in a venue above.',
     test: (place) => place.category === 'wallets',
   },
 ];
@@ -109,9 +98,7 @@ function ChainSheet({
   uses: FrxUsdOppRow[];
   onClose: () => void;
 }) {
-  const outside = isOutside(block.chain);
-  const role = chainRole(block.chain);
-  const share = shareOf(block);
+  const share = block.sharePct;
   const groups = VENUE_GROUPS.map((group) => ({
     ...group,
     rows: block.places.filter(group.test).sort((a, b) => b.usd - a.usd),
@@ -135,14 +122,15 @@ function ChainSheet({
     };
   }, [onClose]);
 
-  const note =
-    role === 'outside'
-      ? 'This pool sits outside circulating frxUSD. Frax does not mint onto Robinhood Chain.'
-      : role === 'fraxnet'
-        ? 'Part of FraxNet. These dollars are in the circulating total, on a chain other than Ethereum and Fraxtal.'
-        : role === 'other'
-          ? 'Smaller chains, grouped. Each row is the frxUSD on that chain.'
-          : null;
+  const onlyHeld = block.places.every((place) => place.category === 'wallets');
+  const robinhood = block.chain.toLowerCase().includes('robinhood');
+  const note = robinhood
+    ? 'Frax does not mint on Robinhood Chain. These dollars are in Fables and GigaDEX, counted from those venues.'
+    : block.chain === 'Other chains'
+      ? 'Smaller chains, each with its own frxUSD balance.'
+      : onlyHeld
+        ? 'No indexed DEX or lending market for frxUSD on this chain. This is the balance reported for the chain.'
+        : null;
 
   return createPortal(
     <div className="chain-sheet" onClick={onClose}>
@@ -166,11 +154,9 @@ function ChainSheet({
             }}
           />
           <div>
-            {role === 'fraxnet' ? <p className="chain-sheet__kicker">FraxNet</p> : null}
             <h3 id="chain-sheet-title">{block.chain}</h3>
             <p>
-              {formatShare(share, outside)}
-              {outside ? '' : ' of circulating'}
+              {formatShare(share)} of supply
               <span> · </span>
               <b className="tabular-nums">{formatUsdMetric(block.circulating)}</b>
             </p>
@@ -280,7 +266,7 @@ export function SupplyBoard({
             id: `wallets-${row.chain}`,
             chain: row.chain,
             category: 'wallets' as const,
-            name: 'In wallets',
+            name: 'Held on this chain',
             usd: row.circulating,
             logo: 'wallet',
           },
@@ -301,16 +287,15 @@ export function SupplyBoard({
     <>
       <div className="chain-grid">
         {blocks.map((block) => {
-          const outside = isOutside(block.chain);
-          const share = shareOf(block);
-          const fill = share > 0 ? Math.min(100, Math.max(share, 6)) : 0;
+          const share = block.sharePct;
+          const fill = share > 0 ? Math.min(100, Math.max(share, share < 1 ? 2 : 6)) : 0;
           return (
             <button
               key={block.chain}
               type="button"
-              className={`chain-tile${outside ? ' chain-tile--outside' : ''}`}
+              className="chain-tile"
               onClick={() => setPicked(block.chain)}
-              aria-label={`${block.chain}, ${formatShare(share, outside)}, ${formatUsdMetric(block.circulating)}. Show venues.`}
+              aria-label={`${block.chain}, ${formatShare(share)}, ${formatUsdMetric(block.circulating)}. Show venues.`}
             >
               <span className="chain-tile__top">
                 <img
@@ -323,7 +308,7 @@ export function SupplyBoard({
                 <strong>{block.chain}</strong>
               </span>
               <span className="chain-tile__foot">
-                <em className="tabular-nums">{formatShare(share, outside)}</em>
+                <em className="tabular-nums">{formatShare(share)}</em>
                 <span className="chain-tile__bar" aria-hidden="true">
                   <i style={{ width: `${fill}%` }} />
                 </span>

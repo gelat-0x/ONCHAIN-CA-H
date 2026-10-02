@@ -7,6 +7,7 @@ import type {
   FrxUsdMintRedeemDay,
   FrxUsdMintRedeemEvent,
   FrxUsdRouteVolume,
+  FrxUsdWindowPeak,
 } from '../../shared/types/index.ts';
 import { fetchJson } from '../lib/http.ts';
 import { fetchDefiLlamaStablecoins, findFrxUsdAsset } from './defillama.ts';
@@ -36,7 +37,6 @@ const BLOCK_TS_CONCURRENCY = 6;
 let cache: { ts: number; data: FrxUsdMintRedeemData | null } | null = null;
 const CACHE_MS = 12_000;
 let lastOnChain: { ts: number; events: FrxUsdMintRedeemEvent[] } | null = null;
-const LAST_ONCHAIN_MS = 30 * 60_000;
 
 function dayStart(ts: number): number {
   return Math.floor(ts / MS_PER_DAY) * MS_PER_DAY;
@@ -246,6 +246,63 @@ function windowSum(events: RouteEvent[], type: 'mint' | 'redeem', since: number)
   return roundCents(sum);
 }
 
+function windowPeak(events: RouteEvent[], type: 'mint' | 'redeem', since: number): number {
+  let max = 0;
+  for (const event of events) {
+    if (event.type === type && event.ts >= since && event.amountUsd > max) max = event.amountUsd;
+  }
+  return roundCents(max);
+}
+
+function dayPeak(days: FrxUsdMintRedeemDay[], field: 'mint' | 'redeem', since?: number): number {
+  let max = 0;
+  for (const day of days) {
+    if (since != null && day.ts < since) continue;
+    if (day[field] > max) max = day[field];
+  }
+  return roundCents(max);
+}
+
+/**
+ * Public Ethereum RPCs only keep a short archive, so a 7-day log sum collapses
+ * into the last day. Earlier days use DefiLlama's net supply change, and the
+ * rolling day stays on gross mint and burn logs.
+ */
+function hybrid7d(
+  daily: FrxUsdMintRedeemDay[],
+  mint24h: number,
+  redeem24h: number,
+  now: number,
+): { mint: number; redeem: number } {
+  const startToday = dayStart(now);
+  const since = now - 7 * MS_PER_DAY;
+  let mint = mint24h;
+  let redeem = redeem24h;
+  for (const day of daily) {
+    if (day.ts >= since && day.ts < startToday) {
+      mint += day.mint;
+      redeem += day.redeem;
+    }
+  }
+  return { mint: roundCents(mint), redeem: roundCents(redeem) };
+}
+
+function peakWindow(
+  printMint: number,
+  printRedeem: number,
+  dayMint: number,
+  dayRedeem: number,
+): FrxUsdWindowPeak {
+  const mintFromDay = dayMint > printMint;
+  const redeemFromDay = dayRedeem > printRedeem;
+  return {
+    mint: mintFromDay ? dayMint : printMint,
+    redeem: redeemFromDay ? dayRedeem : printRedeem,
+    mintBasis: mintFromDay ? 'day' : 'print',
+    redeemBasis: redeemFromDay ? 'day' : 'print',
+  };
+}
+
 function routeVolumes(events: RouteEvent[], now: number): FrxUsdRouteVolume[] {
   const since24h = now - MS_PER_DAY;
   const since7d = now - 7 * MS_PER_DAY;
@@ -312,18 +369,40 @@ export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemD
   const daily = dailyFull.slice(-120);
 
   let activityEvents = tokenEvents;
-  if (activityEvents.length) {
-    lastOnChain = { ts: Date.now(), events: activityEvents };
-  } else if (lastOnChain && Date.now() - lastOnChain.ts < LAST_ONCHAIN_MS) {
-    activityEvents = lastOnChain.events;
+  if (activityEvents.length || lastOnChain) {
+    const since = now - 8 * MS_PER_DAY;
+    const merged = new Map<string, RouteEvent>();
+    for (const event of lastOnChain?.events ?? []) {
+      if (event.ts >= since) merged.set(event.id, event);
+    }
+    for (const event of activityEvents) merged.set(event.id, event);
+    activityEvents = [...merged.values()].sort((a, b) => b.ts - a.ts);
+    if (activityEvents.length) lastOnChain = { ts: Date.now(), events: activityEvents };
   }
 
   const hasTokenSignal = activityEvents.length > 0;
   const routes = routeVolumes(activityEvents, now);
   const mint24h = windowSum(activityEvents, 'mint', now - MS_PER_DAY);
   const redeem24h = windowSum(activityEvents, 'redeem', now - MS_PER_DAY);
-  const mint7d = windowSum(activityEvents, 'mint', now - 7 * MS_PER_DAY);
-  const redeem7d = windowSum(activityEvents, 'redeem', now - 7 * MS_PER_DAY);
+  const week = hybrid7d(dailyFull, mint24h, redeem24h, now);
+  const mint7d = week.mint;
+  const redeem7d = week.redeem;
+  const since7d = now - 7 * MS_PER_DAY;
+  const peaks = {
+    h24: peakWindow(
+      windowPeak(activityEvents, 'mint', now - MS_PER_DAY),
+      windowPeak(activityEvents, 'redeem', now - MS_PER_DAY),
+      0,
+      0,
+    ),
+    d7: peakWindow(
+      windowPeak(activityEvents, 'mint', since7d),
+      windowPeak(activityEvents, 'redeem', since7d),
+      dayPeak(dailyFull, 'mint', since7d),
+      dayPeak(dailyFull, 'redeem', since7d),
+    ),
+    all: peakWindow(0, 0, dayPeak(dailyFull, 'mint'), dayPeak(dailyFull, 'redeem')),
+  };
   const recentEvents = [...new Map(activityEvents.map((e) => [e.id, e])).values()]
     .sort((a, b) => b.ts - a.ts)
     .slice(0, 80);
@@ -344,6 +423,7 @@ export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemD
     mintAll,
     redeemAll,
     netAll,
+    peaks,
     routes,
     chainSupply,
     supplyMap: await buildFrxUsdSupplyMap(chainSupply).catch((error) => {

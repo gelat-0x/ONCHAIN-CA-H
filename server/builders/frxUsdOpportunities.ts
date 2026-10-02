@@ -8,6 +8,7 @@ import {
 import type { DefiLlamaYieldPool, FrxUsdOppFeatured, FrxUsdOppLive, FrxUsdOppRow } from '../../shared/types/index.ts';
 import { fetchDefiLlamaYields } from '../services/defillama.ts';
 import { fetchFablesEusdPool } from '../services/fablesEusd.ts';
+import { fetchGigaFrxUsdPools } from '../services/gigaDex.ts';
 import { fetchJson } from '../lib/http.ts';
 
 const STAKE_DAO_CHAIN: Record<number, string> = {
@@ -547,8 +548,8 @@ function classifyMarkets(pools: DefiLlamaYieldPool[]): FrxUsdOppRow[] {
       chains: ['Ethereum'],
       apy: 0,
       happens:
-        'You borrow frxUSD against Midas mF-ONE or mGLOBAL and mint that token in the same Gearbox credit account. One redemption window unwinds it.',
-      youDo: 'Open the Gearbox market, post the Midas token, and borrow frxUSD. The live borrow rate is on Gearbox.',
+        'A loop exists so a token that already earns can keep earning while you borrow against it. You post Midas mF-ONE or mGLOBAL, borrow frxUSD, and the point is the gap: that token’s yield is meant to run ahead of the frxUSD borrow rate. If the yield falls or the borrow rate rises, the gap can disappear and you can lose money.',
+      youDo: 'Open the Gearbox market, post the Midas token, and borrow frxUSD. Read both the yield and the borrow rate before you do. One redemption window unwinds the position.',
       href: 'https://app.gearbox.fi',
     },
   );
@@ -604,23 +605,32 @@ export async function buildFrxUsdOpportunities(): Promise<FrxUsdOppLive> {
     } catch (error) {
       console.warn('[frxusd-opportunities] fables', error);
     }
-    if (!rows.some((row) => row.id === 'giga-ausd')) {
-      rows.push({
-        id: 'giga-ausd',
-        venue: 'frax',
-        category: 'lp',
-        lane: 'pegkeeper',
-        door: 'peg',
-        group: 'Giga · Robinhood Chain',
-        name: 'frxUSD / aUSD',
-        pair: 'frxUSD / aUSD',
-        chain: 'Robinhood Chain',
-        chains: ['Robinhood Chain'],
-        apy: 0,
-        happens: 'Giga is the Robinhood Chain exchange. frxUSD and aUSD trade in this pool, and you earn the swap fees.',
-        youDo: 'Add frxUSD and aUSD on Giga. The live fee is on Giga and is not shown here.',
-        href: 'https://www.gigadex.fi',
-      });
+    try {
+      const giga = await fetchGigaFrxUsdPools();
+      for (const pool of giga) {
+        const apr =
+          pool.tvlUsd > 0 && pool.fees24hUsd > 0
+            ? +((pool.fees24hUsd / pool.tvlUsd) * 365 * 100).toFixed(2)
+            : 0;
+        rows.push({
+          id: `giga-${pool.id}`,
+          venue: 'frax',
+          category: 'lp',
+          door: 'rwa',
+          group: 'GigaDEX · Robinhood Chain',
+          name: `${pool.otherSymbol} / frxUSD`,
+          pair: `${pool.otherSymbol} / frxUSD`,
+          chain: 'Robinhood Chain',
+          chains: ['Robinhood Chain'],
+          apy: apr > 0 && apr < 80 ? apr : 0,
+          tvlUsd: pool.frxUsdUsd,
+          happens: `${pool.otherSymbol} is a tokenized asset on Robinhood Chain. This GigaDEX pool pairs it with frxUSD, and you earn swap fees when people trade.`,
+          youDo: `Add ${pool.otherSymbol} and frxUSD on GigaDEX. The live fee is on GigaDEX.`,
+          href: 'https://www.gigadex.fi',
+        });
+      }
+    } catch (error) {
+      console.warn('[frxusd-opportunities] giga', error);
     }
     const featured: FrxUsdOppFeatured[] = rows
       .filter((row) => row.apy > 0 && (row.tvlUsd ?? 0) >= 150_000)

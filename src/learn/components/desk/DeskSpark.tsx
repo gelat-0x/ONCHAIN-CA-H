@@ -11,7 +11,7 @@ export function DeskSpark({ days }: { days: FrxUsdMintRedeemDay[] }) {
   const bar = (w - gap * slice.length) / slice.length;
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="desk-spark" role="img" aria-label="Daily mint versus redeem">
+    <svg viewBox={`0 0 ${w} ${h}`} className="desk-spark" role="img" aria-label="Daily net change in circulating supply">
       {slice.map((d, i) => {
         const x = i * (bar + gap);
         const mintH = (d.mint / max) * 40;

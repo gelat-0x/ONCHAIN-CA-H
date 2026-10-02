@@ -29,8 +29,23 @@ export function chainLogo(id: string): string | undefined {
   return pick(CHAINS, id);
 }
 
+const CHAIN_ALIAS: Record<string, string> = {
+  'op-mainnet': 'optimism',
+  op: 'optimism',
+  'bnb-chain': 'bsc',
+  binance: 'bsc',
+  bnb: 'bsc',
+  'polygon-pos': 'polygon',
+  matic: 'polygon',
+  'avalanche-c-chain': 'avalanche',
+  avax: 'avalanche',
+  'robinhood-chain': 'robinhood',
+};
+
 export function chainLogoByName(name: string): string | undefined {
-  const slug = name.toLowerCase().replace(/\s+/g, '-').replace('zk-evm', 'zkevm');
+  const raw = name.toLowerCase().replace(/\s+/g, '-').replace('zk-evm', 'zkevm');
+  if (raw.includes('robinhood')) return '/learn/images/chains/robinhood.png';
+  const slug = CHAIN_ALIAS[raw] ?? raw;
   return (
     pick(CHAINS, slug) ??
     pick(CHAINS, slug.replace('polygon-zkevm', 'polygon-zkevm')) ??

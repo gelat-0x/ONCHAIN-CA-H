@@ -9,12 +9,16 @@ import type {
   FrxUsdSupplyChainBlock,
   FrxUsdSupplyMap,
   FrxUsdSupplyPlace,
+  FrxUsdSupplyUse,
+  FrxUsdUseSlice,
 } from '../../shared/types/index.ts';
 import { fetchDefiLlamaYields } from './defillama.ts';
 import { fetchFablesEusdPool } from './fablesEusd.ts';
+import { fetchGigaFrxUsdPools } from './gigaDex.ts';
 
 const PLACES_TTL_MS = 120_000;
-const MIN_PLACE_USD = 200_000;
+const MIN_PLACE_USD = 15_000;
+const MIN_CHAIN_TILE = 100_000;
 const HOME_CHAINS = new Set(['ethereum', 'fraxtal']);
 
 const PEG_SYMBOLS = new Set(
@@ -62,6 +66,31 @@ function prettyPart(part: string): string {
   return part;
 }
 
+const FX_SIDES = new Set([
+  'brz', 'krwq', 'audf', 'tgbp', 'zarp', 'idrx', 'eurs', 'eurc', 'euroc',
+  'gbpt', 'xsgd', 'idrt', 'tryb', 'cadc', 'nzds', 'mxnb', 'xidr',
+]);
+
+const VENUE_NAME: Record<string, string> = {
+  curve: 'Curve',
+  uniswap: 'Uniswap',
+  aerodrome: 'Aerodrome',
+  fraxswap: 'Fraxswap',
+  giga: 'Giga',
+};
+
+const USE_LABEL: Record<FrxUsdSupplyUse, string> = {
+  pegkeeper: 'PegKeepers',
+  lp: 'LP pools',
+  fx: 'FX markets',
+  rwa: 'Tokenized assets',
+  lending: 'Lending',
+  frax: 'Frax markets',
+  held: 'Held',
+};
+
+const USE_ORDER: FrxUsdSupplyUse[] = ['pegkeeper', 'lp', 'fx', 'rwa', 'lending', 'frax', 'held'];
+
 const PAIR_VENUE: Record<string, string> = {
   'curve-dex': 'curve',
   'uniswap-v4': 'uniswap',
@@ -89,13 +118,31 @@ function isPegkeeperSymbol(symbol: string): boolean {
   return parts.some((part) => part !== 'frxusd' && PEG_SYMBOLS.has(part));
 }
 
+function sideKey(part: string): string {
+  return part.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function useOfPair(symbol: string, venue: string, peg: boolean): FrxUsdSupplyUse {
+  if (peg) return 'pegkeeper';
+  const parts = symbol.split(/[-_/]/).map(sideKey).filter(Boolean);
+  if (parts.some((part) => part.startsWith('fxb'))) return 'rwa';
+  if (parts.some((part) => FX_SIDES.has(part))) return 'fx';
+  if (venue === 'fraxswap') return 'frax';
+  return 'lp';
+}
+
 function pairLabel(symbol: string): string {
-  return symbol
+  const parts = symbol
     .split(/[-_/]/)
     .map((part) => part.trim())
     .filter(Boolean)
-    .map(prettyPart)
-    .join(' / ');
+    .map(prettyPart);
+  const cleaned: string[] = [];
+  for (const part of parts) {
+    if (/^20\d{2}$/.test(part) && cleaned.length) cleaned[cleaned.length - 1] += ` ${part}`;
+    else cleaned.push(part);
+  }
+  return cleaned.join(' / ');
 }
 
 async function fetchAaveFrxUsd(): Promise<{ supplied: number; borrowed: number } | null> {
@@ -147,6 +194,7 @@ function placesFromPools(
       usd: aave.supplied,
       borrowedUsd: aave.borrowed > 0 ? aave.borrowed : undefined,
       logo: 'aave',
+      use: 'lending',
     });
   }
 
@@ -158,13 +206,13 @@ function placesFromPools(
     const chain = pool.chain ?? '';
     const symbol = pool.symbol ?? '';
     const tvl = Number(pool.tvlUsd) || 0;
-    if (!chain || tvl < 50_000) continue;
+    if (!chain || tvl < MIN_PLACE_USD) continue;
     if (project.startsWith('aave')) continue;
 
     const lend = LENDING[project];
     if (lend) {
       const share = frxUsdInPool(symbol, tvl);
-      if (share < 50_000) continue;
+      if (share < MIN_PLACE_USD) continue;
       const id = `lending-${chainKey(chain)}-${lend.logo}`;
       const prev = lending.get(id);
       if (prev) prev.usd += share;
@@ -176,6 +224,7 @@ function placesFromPools(
           name: lend.name,
           usd: share,
           logo: lend.logo,
+          use: lend.logo === 'fraxlend' ? 'frax' : 'lending',
         });
       }
       continue;
@@ -185,9 +234,11 @@ function placesFromPools(
     const venue = pairVenue(project) ?? 'curve';
     const share = frxUsdInPool(symbol, tvl);
     if (share < MIN_PLACE_USD) continue;
-    const name = pairLabel(symbol);
+    const label = pairLabel(symbol);
     const peg = venue === 'curve' && isPegkeeperSymbol(symbol);
-    const id = `pairs-${chainKey(chain)}-${venue}-${name.toLowerCase()}`;
+    const venueName = VENUE_NAME[venue] ?? venue;
+    const name = `${venueName} · ${label}`;
+    const id = `pairs-${chainKey(chain)}-${venue}-${label.toLowerCase()}`;
     const prev = pairs.get(id);
     if (prev) prev.usd += share;
     else {
@@ -198,6 +249,7 @@ function placesFromPools(
         name,
         usd: share,
         logo: venue,
+        use: useOfPair(symbol, venue, peg),
         ...(peg ? { kind: 'pegkeeper' as const } : {}),
       });
     }
@@ -237,7 +289,6 @@ function bucketOf(chain: string, known: Set<string>): 'ethereum' | 'fraxtal' | '
 
 function buildAdoption(chainSupply: FrxUsdChainSupply[], places: FrxUsdSupplyPlace[]): FrxUsdAdoption {
   const known = new Set(chainSupply.map((row) => chainKey(row.chain)));
-  const circulating = chainSupply.reduce((sum, row) => sum + row.circulating, 0);
   const chainUsd = (key: string) =>
     chainSupply.find((row) => chainKey(row.chain) === key)?.circulating ?? 0;
 
@@ -256,13 +307,9 @@ function buildAdoption(chainSupply: FrxUsdChainSupply[], places: FrxUsdSupplyPla
     locks[bucket] += sitting;
   }
   let pegInside = 0;
-  let robinhoodUsd = 0;
   for (const place of peg) {
     const bucket = bucketOf(place.chain, known);
-    if (bucket === 'outside') {
-      robinhoodUsd += place.usd;
-      continue;
-    }
+    if (bucket === 'outside') continue;
     locks[bucket] += place.usd;
     pegInside += place.usd;
   }
@@ -285,19 +332,68 @@ function buildAdoption(chainSupply: FrxUsdChainSupply[], places: FrxUsdSupplyPla
       chain: row.chain,
     }));
 
+  const picture = useSlices(chainSupply, places);
+
   return {
-    circulating: Math.round(circulating),
+    circulating: picture.denom,
+    uses: picture.uses,
     lendingDeposited,
     lendingBorrowed,
     lendingSitting: Math.round(lendingSitting),
     lendingPlaces: [...lending].sort((a, b) => b.usd - a.usd).slice(0, 4).map(toPlace),
     pegkeeperUsd: Math.round(pegInside),
-    robinhoodUsd: Math.round(robinhoodUsd),
+    robinhoodUsd: picture.robinhoodUsd,
     pegkeeperPlaces: [...peg].sort((a, b) => b.usd - a.usd).slice(0, 5).map(toPlace),
     fraxnetUsd,
     fraxnetPlaces,
     coreUsd: Math.round(ethereumHeld + fraxtalHeld),
   };
+}
+
+function isRobinhood(chain: string): boolean {
+  return chainKey(chain).includes('robinhood');
+}
+
+function shareOf(usd: number, total: number): number {
+  if (total <= 0 || usd <= 0) return 0;
+  return Math.round((usd / total) * 10_000) / 100;
+}
+
+function useSlices(chainSupply: FrxUsdChainSupply[], places: FrxUsdSupplyPlace[]): {
+  uses: FrxUsdUseSlice[];
+  robinhoodUsd: number;
+  denom: number;
+} {
+  const known = new Set(chainSupply.map((row) => chainKey(row.chain)));
+  const llama = chainSupply.reduce((sum, row) => sum + row.circulating, 0);
+  const buckets = new Map<FrxUsdSupplyUse, number>();
+  let robinhoodUsd = 0;
+  let accounted = 0;
+
+  for (const place of places) {
+    if (place.category === 'wallets') continue;
+    const rh = isRobinhood(place.chain);
+    if (!rh && !known.has(chainKey(place.chain))) continue;
+    const usd = sittingUsd(place);
+    const use: FrxUsdSupplyUse =
+      place.use ??
+      (place.kind === 'pegkeeper' ? 'pegkeeper' : place.category === 'lending' ? 'lending' : 'lp');
+    buckets.set(use, (buckets.get(use) ?? 0) + usd);
+    accounted += usd;
+    if (rh) robinhoodUsd += usd;
+  }
+
+  const denom = llama + robinhoodUsd;
+  const held = Math.max(0, denom - accounted);
+  if (held >= 1) buckets.set('held', (buckets.get('held') ?? 0) + held);
+
+  const uses = USE_ORDER.map((id) => ({
+    id,
+    label: USE_LABEL[id],
+    usd: Math.round(buckets.get(id) ?? 0),
+  })).filter((slice) => slice.usd > 0);
+
+  return { uses, robinhoodUsd: Math.round(robinhoodUsd), denom: Math.round(denom) };
 }
 
 function sittingUsd(place: FrxUsdSupplyPlace): number {
@@ -307,20 +403,34 @@ function sittingUsd(place: FrxUsdSupplyPlace): number {
   return place.usd;
 }
 
+function fillChain(
+  row: { chain: string; circulating: number },
+  raw: FrxUsdSupplyPlace[],
+  sharePct: number,
+): FrxUsdSupplyChainBlock {
+  const key = chainKey(row.chain);
+  const matched = raw.filter((place) => chainKey(place.chain) === key);
+  const lending = matched.filter((place) => place.category === 'lending').sort((a, b) => b.usd - a.usd);
+  const pairs = matched.filter((place) => place.category === 'pairs').sort((a, b) => b.usd - a.usd);
+  const locked = [...lending, ...pairs].reduce((sum, place) => sum + sittingUsd(place), 0);
+  const wallets = Math.max(0, Math.round(row.circulating - locked));
+  const places = [...lending, ...pairs];
+  if (wallets >= MIN_PLACE_USD || places.length === 0) {
+    places.push({
+      id: `wallets-${key}`,
+      chain: row.chain,
+      category: 'wallets',
+      name: 'Held on this chain',
+      usd: places.length === 0 ? row.circulating : wallets,
+      logo: 'wallet',
+      use: 'held',
+    });
+  }
+  return { chain: row.chain, circulating: row.circulating, sharePct, places };
+}
+
 export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Promise<FrxUsdSupplyMap> {
   const ranked = [...chainSupply].filter((row) => row.circulating > 0).sort((a, b) => b.circulating - a.circulating);
-  const head = ranked.slice(0, 6);
-  const tail = ranked.slice(6);
-  const shown = tail.length
-    ? [
-        ...head,
-        {
-          chain: 'Other chains',
-          circulating: tail.reduce((sum, row) => sum + row.circulating, 0),
-          sharePct: Math.round(tail.reduce((sum, row) => sum + row.sharePct, 0) * 10) / 10,
-        },
-      ]
-    : head;
 
   let raw: FrxUsdSupplyPlace[] = [];
   try {
@@ -338,10 +448,11 @@ export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Pr
           id: 'pegkeeper-robinhood-eusd',
           chain: 'Robinhood Chain',
           category: 'pairs',
-          name: 'frxUSD / eUSD',
+          name: 'Uniswap · frxUSD / eUSD',
           usd: Math.round(fables.frxUsdUsd),
           logo: 'uniswap',
           kind: 'pegkeeper',
+          use: 'pegkeeper',
         },
       ];
     }
@@ -349,63 +460,77 @@ export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Pr
     console.warn('[frxUsdSupplyPlaces] Fables pool failed:', error);
   }
 
-  const chains: FrxUsdSupplyChainBlock[] = shown.map((row) => {
-    if (row.chain === 'Other chains') {
-      const named = tail.slice(0, 8);
-      const rest = tail.slice(8);
-      const places: FrxUsdSupplyPlace[] = named.map((item) => ({
-        id: `wallets-${chainKey(item.chain)}`,
-        chain: item.chain,
-        category: 'wallets',
-        name: item.chain,
-        usd: item.circulating,
-        logo: 'wallet',
-      }));
-      const restUsd = rest.reduce((sum, item) => sum + item.circulating, 0);
-      if (restUsd >= MIN_PLACE_USD) {
-        places.push({
-          id: 'wallets-other-rest',
-          chain: row.chain,
-          category: 'wallets',
-          name: `${rest.length} more chains`,
-          usd: Math.round(restUsd),
-          logo: 'wallet',
-        });
-      }
-      return { ...row, places };
-    }
+  try {
+    const giga = await fetchGigaFrxUsdPools();
+    raw = [
+      ...raw,
+      ...giga.map((pool) => ({
+        id: `giga-${pool.id}`,
+        chain: 'Robinhood Chain',
+        category: 'pairs' as const,
+        name: `Giga · ${pool.otherSymbol} / frxUSD`,
+        usd: pool.frxUsdUsd,
+        logo: 'giga',
+        use: 'rwa' as const,
+      })),
+    ];
+  } catch (error) {
+    console.warn('[frxUsdSupplyPlaces] Giga pools failed:', error);
+  }
 
-    const key = chainKey(row.chain);
-    const matched = raw.filter((place) => chainKey(place.chain) === key);
-    const lending = matched.filter((place) => place.category === 'lending').sort((a, b) => b.usd - a.usd);
-    const pairs = matched.filter((place) => place.category === 'pairs').sort((a, b) => b.usd - a.usd);
+  const robinhoodPlaces = raw.filter((place) => isRobinhood(place.chain));
+  const robinhoodUsd = robinhoodPlaces.reduce((sum, place) => sum + place.usd, 0);
+  const llama = ranked.reduce((sum, row) => sum + row.circulating, 0);
+  const denom = llama + robinhoodUsd;
 
-    const locked = [...lending, ...pairs].reduce((sum, place) => sum + sittingUsd(place), 0);
-    const wallets = Math.max(0, Math.round(row.circulating - locked));
-    const places = [...lending, ...pairs];
-    if (wallets >= MIN_PLACE_USD || places.length === 0) {
+  const head = ranked.filter((row) => row.circulating >= MIN_CHAIN_TILE);
+  const tail = ranked.filter((row) => row.circulating < MIN_CHAIN_TILE);
+  const chains: FrxUsdSupplyChainBlock[] = head.map((row) =>
+    fillChain(row, raw, shareOf(row.circulating, denom)),
+  );
+
+  if (tail.length) {
+    const named = tail.slice(0, 8);
+    const rest = tail.slice(8);
+    const places: FrxUsdSupplyPlace[] = named.map((item) => ({
+      id: `wallets-${chainKey(item.chain)}`,
+      chain: item.chain,
+      category: 'wallets',
+      name: item.chain,
+      usd: item.circulating,
+      logo: 'wallet',
+      use: 'held',
+    }));
+    const restUsd = rest.reduce((sum, item) => sum + item.circulating, 0);
+    if (restUsd >= MIN_PLACE_USD) {
       places.push({
-        id: `wallets-${key}`,
-        chain: row.chain,
+        id: 'wallets-other-rest',
+        chain: 'Other chains',
         category: 'wallets',
-        name: 'In wallets',
-        usd: places.length === 0 ? row.circulating : wallets,
+        name: `${rest.length} more chains`,
+        usd: Math.round(restUsd),
         logo: 'wallet',
+        use: 'held',
       });
     }
-
-    return { chain: row.chain, circulating: row.circulating, sharePct: row.sharePct, places };
-  });
-
-  const robinhood = raw.find((place) => place.id === 'pegkeeper-robinhood-eusd');
-  if (robinhood) {
+    const circulating = tail.reduce((sum, row) => sum + row.circulating, 0);
     chains.push({
-      chain: 'Robinhood Chain',
-      circulating: robinhood.usd,
-      sharePct: 0,
-      places: [robinhood],
+      chain: 'Other chains',
+      circulating,
+      sharePct: shareOf(circulating, denom),
+      places,
     });
   }
 
+  if (robinhoodUsd >= 1_000) {
+    chains.push({
+      chain: 'Robinhood Chain',
+      circulating: Math.round(robinhoodUsd),
+      sharePct: shareOf(robinhoodUsd, denom),
+      places: [...robinhoodPlaces].sort((a, b) => b.usd - a.usd),
+    });
+  }
+
+  chains.sort((a, b) => b.circulating - a.circulating);
   return { chains, adoption: buildAdoption(ranked, raw) };
 }

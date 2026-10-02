@@ -19,7 +19,23 @@ export function useFrxUsdIssuance() {
       const res = await fetch(ENDPOINT, { signal: ctrl.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as FrxUsdMintRedeemData;
-      setData(json);
+      setData((prev) => {
+        if (!prev) return json;
+        const thin = !json.chainSupply?.length && !json.daily?.length && !json.recentEvents?.length;
+        if (thin) return prev;
+        return {
+          ...json,
+          recentEvents: json.recentEvents?.length ? json.recentEvents : prev.recentEvents,
+          daily: json.daily?.length ? json.daily : prev.daily,
+          chainSupply: json.chainSupply?.length ? json.chainSupply : prev.chainSupply,
+          supplyMap: json.supplyMap ?? prev.supplyMap,
+          peaks: json.peaks ?? prev.peaks,
+          mint24h: Number.isFinite(json.mint24h) ? json.mint24h : prev.mint24h,
+          redeem24h: Number.isFinite(json.redeem24h) ? json.redeem24h : prev.redeem24h,
+          mint7d: Number.isFinite(json.mint7d) ? json.mint7d : prev.mint7d,
+          redeem7d: Number.isFinite(json.redeem7d) ? json.redeem7d : prev.redeem7d,
+        };
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'fetch_failed');
     } finally {

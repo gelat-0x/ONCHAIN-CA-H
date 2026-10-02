@@ -224,7 +224,7 @@ export interface DefiLlamaYieldPool {
 
 export type FrxUsdOppCategory = 'vault' | 'lp';
 export type FrxUsdLpLane = 'pegkeeper' | 'fx' | 'amm' | 'compound' | 'boost';
-export type FrxUsdOppDoor = 'vault' | 'lend' | 'loop' | 'fx' | 'peg' | 'boost';
+export type FrxUsdOppDoor = 'vault' | 'lend' | 'loop' | 'fx' | 'peg' | 'rwa' | 'boost';
 
 export interface FrxUsdOppRow {
   id: string;
@@ -356,6 +356,9 @@ export interface FrxUsdChainSupply {
 
 export type FrxUsdSupplyCategory = 'lending' | 'pairs' | 'wallets';
 
+/** What the dollars are doing, independent of which chain they sit on. */
+export type FrxUsdSupplyUse = 'lending' | 'frax' | 'pegkeeper' | 'lp' | 'fx' | 'rwa' | 'held';
+
 /** One place dollars sit, inside a chain. */
 export interface FrxUsdSupplyPlace {
   id: string;
@@ -368,6 +371,8 @@ export interface FrxUsdSupplyPlace {
   logo: string;
   /** PegKeeper pair, as opposed to any other pool. */
   kind?: 'pegkeeper';
+  /** Use-case slice. Held is the residual on a chain. */
+  use?: FrxUsdSupplyUse;
 }
 
 export interface FrxUsdSupplyChainBlock {
@@ -384,9 +389,17 @@ export interface FrxUsdAdoptionPlace {
   chain: string;
 }
 
+export interface FrxUsdUseSlice {
+  id: FrxUsdSupplyUse;
+  label: string;
+  usd: number;
+}
+
 /** Where circulating frxUSD sits, plus the lending deposit that is larger than what still sits. */
 export interface FrxUsdAdoption {
   circulating: number;
+  /** Use-case split of circulating, including Robinhood venues DefiLlama does not list. */
+  uses?: FrxUsdUseSlice[];
   /** Gross deposits. Borrowed dollars already left and are inside the core float. */
   lendingDeposited: number;
   lendingBorrowed: number;
@@ -424,6 +437,14 @@ export interface FrxUsdMintRedeemEvent {
   explorerUrl: string;
 }
 
+/** Largest mint and burn in a window. `print` is one transaction; `day` is one day's net supply change. */
+export interface FrxUsdWindowPeak {
+  mint: number;
+  redeem: number;
+  mintBasis: 'print' | 'day';
+  redeemBasis: 'print' | 'day';
+}
+
 /** Daily mint vs redeem derived from circulating-supply changes. */
 export interface FrxUsdMintRedeemDay {
   ts: number;
@@ -446,6 +467,12 @@ export interface FrxUsdMintRedeemData {
   mintAll: number;
   redeemAll: number;
   netAll: number;
+  /** Largest mint and burn for the desk rotator. 7d mixes indexed prints with daily supply change when older logs are unavailable. */
+  peaks?: {
+    h24: FrxUsdWindowPeak;
+    d7: FrxUsdWindowPeak;
+    all: FrxUsdWindowPeak;
+  };
   routes: FrxUsdRouteVolume[];
   chainSupply: FrxUsdChainSupply[];
   supplyMap?: FrxUsdSupplyMap;

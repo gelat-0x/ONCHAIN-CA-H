@@ -67,6 +67,9 @@ export const API_ENDPOINTS = {
     poolVolumeHistory: 'https://www.fables.fi/api/gw/PoolVolumeHistoryBatch',
   },
 
+  /** GigaDEX Hasura — Robinhood Chain pools. token0/token1 are addresses. */
+  gigaGraphql: 'https://edge.gigadex.fi/v1/graphql',
+
   stakeDao: {
     curveStrategies: (chainId = 1) =>
       `https://api.stakedao.org/api/strategies/v2/curve/${chainId}.json`,
