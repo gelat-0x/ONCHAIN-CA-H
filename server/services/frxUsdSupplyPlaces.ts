@@ -13,7 +13,7 @@ import type {
   FrxUsdUseSlice,
 } from '../../shared/types/index.ts';
 import { fetchDefiLlamaYields } from './defillama.ts';
-import { fetchFablesEusdPool } from './fablesEusd.ts';
+import { fetchFablesFrxUsdPools } from './fablesEusd.ts';
 import { fetchGigaFrxUsdPools } from './gigaDex.ts';
 
 const PLACES_TTL_MS = 120_000;
@@ -441,24 +441,21 @@ export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Pr
   }
 
   try {
-    const fables = await fetchFablesEusdPool();
-    if (fables && fables.frxUsdUsd >= 1_000) {
-      raw = [
-        ...raw,
-        {
-          id: 'pegkeeper-robinhood-eusd',
-          chain: 'Robinhood Chain',
-          category: 'pairs',
-          name: 'Uniswap · frxUSD / eUSD',
-          usd: Math.round(fables.frxUsdUsd),
-          logo: 'uniswap',
-          kind: 'pegkeeper',
-          use: 'pegkeeper',
-        },
-      ];
-    }
+    const fables = await fetchFablesFrxUsdPools();
+    raw = [
+      ...raw,
+      ...fables.map((pool) => ({
+        id: `fables-${pool.slug}`,
+        chain: 'Robinhood Chain' as const,
+        category: 'pairs' as const,
+        name: `Fables · ${pool.otherSymbol} / frxUSD`,
+        usd: Math.round(pool.frxUsdUsd),
+        logo: 'fables',
+        ...(pool.stable ? { kind: 'pegkeeper' as const, use: 'pegkeeper' as const } : { use: 'lp' as const }),
+      })),
+    ];
   } catch (error) {
-    console.warn('[frxUsdSupplyPlaces] Fables pool failed:', error);
+    console.warn('[frxUsdSupplyPlaces] Fables pools failed:', error);
   }
 
   try {

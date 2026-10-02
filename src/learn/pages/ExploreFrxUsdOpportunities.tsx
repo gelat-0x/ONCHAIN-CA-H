@@ -55,7 +55,7 @@ const DOORS: Array<{ id: FrxUsdOppDoor; title: string; line: string; note?: stri
     id: 'peg',
     title: 'PegKeeper LP',
     line: 'Pair frxUSD with another dollar so the price stays near $1.',
-    logos: ['curve', 'uniswap'],
+    logos: ['curve', 'fables', 'uniswap'],
   },
   {
     id: 'rwa',

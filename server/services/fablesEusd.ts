@@ -101,6 +101,101 @@ export async function fetchFablesEusdPool(): Promise<FablesEusdLive | null> {
   };
 }
 
+/** Live Fables markets whose quote or base is frxUSD. Preview markets with no reserves are omitted. */
+const FRXUSD = '0x00000000d61733e7a393a10a5b48c311abe8f1e5';
+
+const FABLES_FRXUSD_MARKETS: Array<{
+  id: string;
+  slug: string;
+  otherSymbol: string;
+  otherName: string;
+  otherAddress: string;
+  stable: boolean;
+}> = [
+  {
+    id: '0x29bb26f93fe1bbbf81ee62671cc2a66fbf318f20e6b0757607a2fe3713651fdf',
+    slug: 'ausd-frxusd',
+    otherSymbol: 'aUSD',
+    otherName: 'Arrow USD',
+    otherAddress: '0x4f11d7603D1B0D0f021Db552D8A6d88d7fa38ecf',
+    stable: true,
+  },
+  {
+    id: '0xdc844c8cc27ad9a1d122c03adeadc8b3652d29008d88344823ad9d52555b926b',
+    slug: 'eusd',
+    otherSymbol: 'eUSD',
+    otherName: 'Own eUSD',
+    otherAddress: '0x8B84D644CECaeE6d21373F37E1bA00f85eD7CdB7',
+    stable: true,
+  },
+  {
+    id: '0x7e42e835239ea7f2707b77b7672e4358aa2b799746274ab1254d8a576b5f56fb',
+    slug: 'frxusd',
+    otherSymbol: 'USDG',
+    otherName: 'USDG',
+    otherAddress: '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168',
+    stable: true,
+  },
+  {
+    id: '0x0f4d4d8a40ce635f1317f18b9fdf41fb5492bec9763abdacf3ea59a2c3bf5758',
+    slug: 'sfi-frxusd',
+    otherSymbol: 'SFI',
+    otherName: 'Saffron',
+    otherAddress: '0xE77d354898A44808ff3999947002785CD727BEd5',
+    stable: false,
+  },
+];
+
+export interface FablesFrxUsdPool {
+  id: string;
+  slug: string;
+  otherSymbol: string;
+  otherName: string;
+  stable: boolean;
+  tvlUsd: number;
+  frxUsdUsd: number;
+  volumeUsd: number;
+  feesUsd: number;
+  swapFeeApr: number;
+  href: string;
+}
+
+export async function fetchFablesFrxUsdPools(): Promise<FablesFrxUsdPool[]> {
+  const headers = { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' };
+  const [tvlBody, volBody] = await Promise.all([
+    fetchJson<FablesGw<FablesPoolTvl>>(API_ENDPOINTS.fables.poolTvl, { headers }),
+    fetchJson<FablesGw<FablesPoolVolume>>(API_ENDPOINTS.fables.poolVolume24h, { headers }),
+  ]);
+
+  const pools: FablesFrxUsdPool[] = [];
+  for (const market of FABLES_FRXUSD_MARKETS) {
+    const tvl = pickPool(tvlBody?.pools, market.id);
+    const vol = pickPool(volBody?.pools, market.id);
+    const tvlUsd = tvl?.tvlUsd;
+    const supply0 = tvl?.supply0;
+    const supply1 = tvl?.supply1;
+    if (tvlUsd == null || !Number.isFinite(tvlUsd) || tvlUsd <= 0) continue;
+    if (supply0 == null || supply1 == null || !Number.isFinite(supply0) || !Number.isFinite(supply1)) continue;
+    const frxUsdUsd = market.otherAddress.toLowerCase() > FRXUSD ? supply0 : supply1;
+    if (!Number.isFinite(frxUsdUsd) || frxUsdUsd < 1_000) continue;
+    const feesUsd = vol?.feesUsd != null && Number.isFinite(vol.feesUsd) && vol.feesUsd >= 0 ? vol.feesUsd : 0;
+    pools.push({
+      id: market.id,
+      slug: market.slug,
+      otherSymbol: market.otherSymbol,
+      otherName: market.otherName,
+      stable: market.stable,
+      tvlUsd,
+      frxUsdUsd,
+      volumeUsd: vol?.volumeUsd != null && Number.isFinite(vol.volumeUsd) ? vol.volumeUsd : 0,
+      feesUsd,
+      swapFeeApr: tvlUsd > 0 ? (feesUsd / tvlUsd) * 365 * 100 : 0,
+      href: `https://www.fables.fi/markets/${market.slug}`,
+    });
+  }
+  return pools.sort((a, b) => b.frxUsdUsd - a.frxUsdUsd);
+}
+
 export function applyFablesLive(entry: PoolRegistryEntry, live: FablesEusdLive | null): PoolData {
   const base = registryToPoolData(
     entry,

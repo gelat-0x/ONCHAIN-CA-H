@@ -7,7 +7,7 @@ import {
 } from '../../shared/data/frxUsdOpportunities.ts';
 import type { DefiLlamaYieldPool, FrxUsdOppFeatured, FrxUsdOppLive, FrxUsdOppRow } from '../../shared/types/index.ts';
 import { fetchDefiLlamaYields } from '../services/defillama.ts';
-import { fetchFablesEusdPool } from '../services/fablesEusd.ts';
+import { fetchFablesFrxUsdPools } from '../services/fablesEusd.ts';
 import { fetchGigaFrxUsdPools } from '../services/gigaDex.ts';
 import { fetchJson } from '../lib/http.ts';
 
@@ -671,25 +671,31 @@ export async function buildFrxUsdOpportunities(): Promise<FrxUsdOppLive> {
 
     const rows = classifyMarkets(pools);
     try {
-      const fables = await fetchFablesEusdPool();
-      if (fables && fables.frxUsdUsd >= 1_000) {
-        const apr = fables.swapFeeApr > 0 && fables.swapFeeApr < 40 ? +fables.swapFeeApr.toFixed(2) : 0;
+      const fables = await fetchFablesFrxUsdPools();
+      for (const pool of fables) {
+        const apr = pool.swapFeeApr > 0 && pool.swapFeeApr < 40 ? +pool.swapFeeApr.toFixed(2) : 0;
+        const pair = `${pool.otherSymbol} / frxUSD`;
         rows.push({
-          id: 'fables-eusd',
-          venue: 'uniswap',
+          id: `fables-${pool.slug}`,
+          venue: 'fables',
           category: 'lp',
-          lane: 'pegkeeper',
-          door: 'peg',
-          group: 'Uniswap · Robinhood Chain',
-          name: 'eUSD / frxUSD',
-          pair: 'eUSD / frxUSD',
+          ...(pool.stable ? { lane: 'pegkeeper' as const } : {}),
+          door: pool.stable ? 'peg' : 'fx',
+          group: 'Fables · Robinhood Chain',
+          name: pair,
+          pair,
           chain: 'Robinhood Chain',
           chains: ['Robinhood Chain'],
           apy: apr,
-          tvlUsd: fables.frxUsdUsd,
-          happens: 'Own eUSD and frxUSD trade on Fables, a Uniswap pool on Robinhood Chain. You earn the swap fees.',
-          youDo: 'Add eUSD and frxUSD on Fables. The rate is swap fees. A separate Merkl reward is paid on top and is not in this number.',
-          href: 'https://www.fables.fi/markets/eusd',
+          tvlUsd: pool.frxUsdUsd,
+          happens: pool.stable
+            ? `${pool.otherName} and frxUSD trade on Fables, a Uniswap v4 pool on Robinhood Chain. Both are dollars. You earn the swap fees.`
+            : `${pool.otherName} and frxUSD trade on Fables, a Uniswap v4 pool on Robinhood Chain. You earn the swap fees.`,
+          youDo:
+            pool.slug === 'eusd'
+              ? `Add ${pool.otherSymbol} and frxUSD on Fables. The rate is swap fees. A separate Merkl reward is paid on top and is not in this number.`
+              : `Add ${pool.otherSymbol} and frxUSD on Fables. The rate is swap fees.`,
+          href: pool.href,
         });
       }
     } catch (error) {
