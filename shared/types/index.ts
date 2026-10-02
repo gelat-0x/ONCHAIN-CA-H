@@ -214,11 +214,62 @@ export interface DefiLlamaYieldPool {
   pool: string;
   symbol: string;
   project?: string;
+  chain?: string;
   tvlUsd?: number;
   apy?: number;
   apyBase?: number;
   apyReward?: number;
   volumeUsd1d?: number;
+}
+
+export type FrxUsdOppCategory = 'vault' | 'lp';
+export type FrxUsdLpLane = 'pegkeeper' | 'fx' | 'amm' | 'compound' | 'boost';
+export type FrxUsdOppDoor = 'hold' | 'vault' | 'lend' | 'borrow' | 'fx' | 'peg' | 'rwa' | 'loop' | 'boost';
+
+export interface FrxUsdOppRow {
+  id: string;
+  venue: string;
+  category: FrxUsdOppCategory;
+  lane?: FrxUsdLpLane;
+  /** Which entry block this market belongs to. */
+  door?: FrxUsdOppDoor;
+  /** Venue label inside an open block, so Curve and Uniswap stay apart. */
+  group?: string;
+  /** What the position does, in one sentence. */
+  happens?: string;
+  /** What the user actually does. */
+  youDo?: string;
+  name: string;
+  pair: string;
+  chain: string;
+  chains: string[];
+  apy: number;
+  tvlUsd?: number;
+  href: string;
+  internal?: boolean;
+}
+
+export interface FrxUsdOppFeatured {
+  id: string;
+  venue: string;
+  name: string;
+  pair: string;
+  chain: string;
+  chains: string[];
+  apy: number;
+  note: string;
+  href: string;
+  internal?: boolean;
+}
+
+export interface FrxUsdOppLive {
+  liveCount: number;
+  averageApy: number;
+  ecosystems: number;
+  featured: FrxUsdOppFeatured[];
+  rows: FrxUsdOppRow[];
+  stakeDao: { count: number; pools: FrxUsdOppRow[] };
+  updatedAt: string;
 }
 
 /** DefiLlama stablecoin asset shape (subset) */
@@ -303,6 +354,77 @@ export interface FrxUsdChainSupply {
   sharePct: number;
 }
 
+export type FrxUsdSupplyCategory = 'lending' | 'pairs' | 'wallets';
+
+/** What the dollars are doing, independent of which chain they sit on. */
+export type FrxUsdSupplyUse = 'lending' | 'frax' | 'pegkeeper' | 'lp' | 'fx' | 'rwa' | 'held';
+
+/** One place dollars sit, inside a chain. */
+export interface FrxUsdSupplyPlace {
+  id: string;
+  chain: string;
+  category: FrxUsdSupplyCategory;
+  name: string;
+  usd: number;
+  /** Dollars borrowed out of a lending place. They no longer sit in the market. */
+  borrowedUsd?: number;
+  logo: string;
+  /** PegKeeper pair, as opposed to any other pool. */
+  kind?: 'pegkeeper';
+  /** Use-case slice. Held is the residual on a chain. */
+  use?: FrxUsdSupplyUse;
+  /** Venue page for this place. */
+  href?: string;
+}
+
+export interface FrxUsdSupplyChainBlock {
+  chain: string;
+  circulating: number;
+  sharePct: number;
+  places: FrxUsdSupplyPlace[];
+}
+
+export interface FrxUsdAdoptionPlace {
+  name: string;
+  usd: number;
+  logo: string;
+  chain: string;
+}
+
+export interface FrxUsdUseSlice {
+  id: FrxUsdSupplyUse;
+  label: string;
+  usd: number;
+}
+
+/** Where circulating frxUSD sits, plus the lending deposit that is larger than what still sits. */
+export interface FrxUsdAdoption {
+  circulating: number;
+  /** Use-case split of circulating, including Robinhood venues DefiLlama does not list. */
+  uses?: FrxUsdUseSlice[];
+  /** Gross deposits. Borrowed dollars already left and are inside the core float. */
+  lendingDeposited: number;
+  lendingBorrowed: number;
+  /** Still inside lending contracts. This slice is part of circulating. */
+  lendingSitting: number;
+  lendingPlaces: FrxUsdAdoptionPlace[];
+  /** PegKeeper frxUSD inside chains DefiLlama counts. */
+  pegkeeperUsd: number;
+  /** eUSD pool on Robinhood Chain. Not part of DefiLlama circulating supply. */
+  robinhoodUsd: number;
+  pegkeeperPlaces: FrxUsdAdoptionPlace[];
+  /** Non-home chains after protocol locks on those chains are removed. */
+  fraxnetUsd: number;
+  fraxnetPlaces: FrxUsdAdoptionPlace[];
+  /** Held as frxUSD on Ethereum and Fraxtal, outside lending and PegKeepers. */
+  coreUsd: number;
+}
+
+export interface FrxUsdSupplyMap {
+  chains: FrxUsdSupplyChainBlock[];
+  adoption?: FrxUsdAdoption;
+}
+
 /** Recent on-chain mint or redeem event. */
 export interface FrxUsdMintRedeemEvent {
   id: string;
@@ -312,6 +434,17 @@ export interface FrxUsdMintRedeemEvent {
   asset: string;
   amountUsd: number;
   txHash: string;
+  /** Chain the print landed on or returned from. Ethereum for canonical issuance. */
+  chain: string;
+  explorerUrl: string;
+}
+
+/** Largest mint and burn in a window. `print` is one transaction; `day` is one day's net supply change. */
+export interface FrxUsdWindowPeak {
+  mint: number;
+  redeem: number;
+  mintBasis: 'print' | 'day';
+  redeemBasis: 'print' | 'day';
 }
 
 /** Daily mint vs redeem derived from circulating-supply changes. */
@@ -332,8 +465,19 @@ export interface FrxUsdMintRedeemData {
   mint7d: number;
   redeem7d: number;
   net7d: number;
+  /** All-time totals from full circulating-supply daily series (net deltas, not gross logs). */
+  mintAll: number;
+  redeemAll: number;
+  netAll: number;
+  /** Largest mint and burn for the desk rotator. 7d mixes indexed prints with daily supply change when older logs are unavailable. */
+  peaks?: {
+    h24: FrxUsdWindowPeak;
+    d7: FrxUsdWindowPeak;
+    all: FrxUsdWindowPeak;
+  };
   routes: FrxUsdRouteVolume[];
   chainSupply: FrxUsdChainSupply[];
+  supplyMap?: FrxUsdSupplyMap;
   daily: FrxUsdMintRedeemDay[];
   recentEvents: FrxUsdMintRedeemEvent[];
   source: string;

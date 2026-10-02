@@ -636,7 +636,7 @@ const frxUSD = {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-stretch">
           <motion.div {...stagger(0)} className="h-full">
-            <CoreProductCard {...frxUSD} cta={{ label: "Check it out →", href: "/learn/explore-better-money" }} />
+            <CoreProductCard {...frxUSD} cta={{ label: "Check it out →", href: "/frxUSD" }} />
           </motion.div>
           <motion.div {...stagger(0.1)} className="h-full">
             <CoreProductCard {...fraxNet} cta={{ label: "Check it out →", href: "https://net.frax.com", external: true }} />

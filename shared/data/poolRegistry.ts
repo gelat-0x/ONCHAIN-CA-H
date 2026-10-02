@@ -573,6 +573,35 @@ export const DUNE_BASELINE = {
 };
 
 /** Use live TVL only when plausible USD; otherwise registry/Dune fallback. */
+export function curveChainSlug(chain: string): string {
+  const key = chain.toLowerCase().trim();
+  if (key === 'op mainnet' || key === 'optimism' || key === 'op') return 'optimism';
+  if (key === 'bnb' || key === 'bnb chain' || key === 'binance' || key === 'bsc') return 'bsc';
+  if (key === 'avalanche c-chain' || key === 'avax') return 'avalanche';
+  if (key === 'polygon pos' || key === 'matic') return 'polygon';
+  return key.replace(/\s+/g, '');
+}
+
+/** Curve deposit page for a known PegKeeper, or the chain's pool list. */
+export function curveDepositUrl(chain: string, label: string): string {
+  const slug = curveChainSlug(chain);
+  const parts = label
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((part) => part && part !== 'frxusd' && part !== 'curve');
+  const hits = POOL_REGISTRY.filter((entry) => {
+    if (!entry.curvePoolAddress || entry.venue === 'fables') return false;
+    if (curveChainSlug(entry.chain) !== slug) return false;
+    const sym = entry.stablecoin.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return parts.some((part) => part === sym);
+  }).sort((a, b) => b.stablecoin.length - a.stablecoin.length);
+  const hit = hits[0];
+  if (hit?.curvePoolAddress) {
+    return `https://www.curve.finance/dex/${slug}/pools/${hit.curvePoolAddress}/deposit`;
+  }
+  return `https://www.curve.finance/dex/${slug}/pools`;
+}
+
 export function resolvePoolTvl(entry: PoolRegistryEntry, liveTvl?: number): number {
   const n = Number(liveTvl);
   if (Number.isFinite(n) && n > 0 && n <= MAX_POOL_USD) return Math.round(n);

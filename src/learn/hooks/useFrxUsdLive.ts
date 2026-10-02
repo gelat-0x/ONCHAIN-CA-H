@@ -28,6 +28,7 @@ const FUND_APR: Record<string, number> = {
   EREBOR_USD: 0,
   USDB: 0,
   USDC: 0,
+  AUSD: 0,
 };
 
 export interface FrxAsset {
@@ -46,25 +47,18 @@ export interface FrxUsdLive {
   updatedAt: Date | null;
 }
 
-const FALLBACK: FrxUsdLive = {
+const EMPTY: FrxUsdLive = {
   loading: true,
   error: null,
-  circulation: 138_900_000,
-  reserves: 141_900_000,
-  assets: [
-    { ticker: "WTGXX", value: 67_287_725, pct: 47.4 },
-    { ticker: "USTB",  value: 25_092_790, pct: 17.7 },
-    { ticker: "BUIDL", value: 15_790_148, pct: 11.1 },
-    { ticker: "EREBOR_USD", value: 2_002_338, pct: 1.4 },
-    { ticker: "USDC",  value: 9_170, pct: 0.01 },
-    { ticker: "USDB",  value: 4, pct: 0 },
-  ],
-  apr: 3.5,
+  circulation: 0,
+  reserves: 0,
+  assets: [],
+  apr: null,
   updatedAt: null,
 };
 
 export const useFrxUsdLive = (): FrxUsdLive & { refresh: () => void } => {
-  const [state, setState] = useState<FrxUsdLive>(FALLBACK);
+  const [state, setState] = useState<FrxUsdLive>(EMPTY);
 
   const fetchData = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
@@ -107,7 +101,15 @@ export const useFrxUsdLive = (): FrxUsdLive & { refresh: () => void } => {
         updatedAt: new Date(),
       });
     } catch (e: any) {
-      setState({ ...FALLBACK, loading: false, error: e?.message ?? "fetch failed", updatedAt: new Date() });
+      setState((current) => ({
+        ...current,
+        loading: false,
+        error: e?.message ?? "fetch failed",
+        circulation: current.updatedAt ? current.circulation : 0,
+        reserves: current.updatedAt ? current.reserves : 0,
+        assets: current.updatedAt ? current.assets : [],
+        apr: current.updatedAt ? current.apr : null,
+      }));
     }
   }, []);
 

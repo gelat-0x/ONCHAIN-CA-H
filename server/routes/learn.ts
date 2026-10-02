@@ -1,6 +1,19 @@
 import { Router } from 'express';
+import { buildFrxUsdOpportunities } from '../builders/frxUsdOpportunities.ts';
+import { fallbackOpportunityLive } from '../../shared/data/frxUsdOpportunities.ts';
+import { fetchFrxUsdMintRedeemOverview } from '../services/frxUsdMintRedeem.ts';
 
 export const learnRouter = Router();
+
+learnRouter.get('/learn/frxusd-opportunities', async (_req, res) => {
+  try {
+    const data = await buildFrxUsdOpportunities();
+    return res.json(data);
+  } catch (error) {
+    console.error('[learn] frxusd-opportunities failed:', error);
+    return res.json(fallbackOpportunityLive());
+  }
+});
 
 learnRouter.get('/learn/frxusd-balance-sheet', async (_req, res) => {
   try {
@@ -37,6 +50,17 @@ learnRouter.get('/learn/frxusd-apr', async (_req, res) => {
     return res.json({ apr, date: data.date ?? null, source: 'net.frax.com/api/stats/latest-apr' });
   } catch (error) {
     console.error('[learn] apr failed:', error);
+    return res.status(502).json({ error: 'fetch_failed' });
+  }
+});
+
+learnRouter.get('/learn/frxusd-issuance', async (_req, res) => {
+  try {
+    const data = await fetchFrxUsdMintRedeemOverview();
+    if (!data) return res.status(503).json({ error: 'issuance_unavailable' });
+    return res.json(data);
+  } catch (error) {
+    console.error('[learn] issuance failed:', error);
     return res.status(502).json({ error: 'fetch_failed' });
   }
 });

@@ -5,7 +5,8 @@
 import { PLACEHOLDER_DASHBOARD } from '../data/placeholders.ts';
 import { POOL_REGISTRY } from '../data/poolRegistry.ts';
 import { sanitizeDashboardData } from '../../shared/lib/sanitizeMetrics.ts';
-import type { ChartsData, ChartHistoryResponse, ChartRange, DashboardData, NewsResponse, ProtocolChartsData, ShowData, XTimelineResponse } from '../types/index.ts';
+import type { ChartsData, ChartHistoryResponse, ChartRange, DashboardData, FrxUsdOppLive, NewsResponse, ProtocolChartsData, ShowData, XTimelineResponse } from '../types/index.ts';
+import { fallbackOpportunityLive } from '../../shared/data/frxUsdOpportunities.ts';
 import type { ChartRangeId } from '../../shared/constants/chartRanges.ts';
 import {
   ONCHAIN_CASH_HOSTS,
@@ -62,6 +63,11 @@ export async function fetchDashboardData(refresh = false): Promise<DashboardData
 /** Warm the dashboard cache as soon as the app boots. */
 export function prefetchDashboardData(): void {
   void fetchDashboardData(false);
+}
+
+export async function fetchFrxUsdOpportunities(): Promise<FrxUsdOppLive> {
+  const data = await safeFetch<FrxUsdOppLive>('/api/learn/frxusd-opportunities', 20_000);
+  return data ?? fallbackOpportunityLive();
 }
 
 const NEWS_TIMEOUT = 20_000;

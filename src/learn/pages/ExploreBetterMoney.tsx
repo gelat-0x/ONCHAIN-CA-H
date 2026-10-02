@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { motion, useScroll, useTransform, useInView, AnimatePresence, useReducedMotion } from "motion/react";
+import { useLocation } from "react-router-dom";
+import { motion, useInView, AnimatePresence, useReducedMotion } from "motion/react";
 import {
   Shield, TrendingUp, Globe, Building2, Code, Search,
   ExternalLink, BookOpen,
@@ -10,6 +11,9 @@ import TransparencyReserves from "@learn/components/TransparencyReserves";
 import { useFrxUsdLive } from "@learn/hooks/useFrxUsdLive";
 import { useHeroApr } from "@learn/hooks/useHeroApr";
 import Seo from "@learn/components/Seo";
+import { MeshGrid } from "@learn/components/MeshGrid";
+import FrxUsdDesk from "./FrxUsdDesk";
+import ExploreFrxUsdOpportunities from "./ExploreFrxUsdOpportunities";
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    LAZY IMAGE, IntersectionObserver fade-in
@@ -92,7 +96,7 @@ const AnimatedCounter = ({
 const Section = ({ children, id, className = "", noDivider = false }: {
   children: React.ReactNode; id?: string; className?: string; noDivider?: boolean;
 }) => (
-  <section id={id} className={`py-10 md:py-28 px-5 md:px-6 lg:px-8 relative ${className}`}>
+  <section id={id} className={`py-8 md:py-14 px-5 md:px-6 lg:px-8 relative ${className}`}>
     {!noDivider && (
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-px bg-gradient-to-r from-transparent via-[hsl(0,0%,14%)] to-transparent" />
     )}
@@ -113,7 +117,7 @@ const SectionSub = ({ children }: { children: React.ReactNode }) => (
 const cardBase = "p-6 rounded-2xl border border-[hsl(0,0%,14%)]/40 bg-[hsl(0,0%,7%)]/40 hover:border-[hsl(0,0%,14%)]/70 hover:bg-[hsl(0,0%,7%)]/70 transition-colors duration-300";
 
 const flipFaceBase =
-  "absolute inset-0 overflow-hidden flex flex-col p-6 rounded-2xl border border-[hsl(0,0%,16%)] bg-[hsl(0,0%,8%)]";
+  "absolute inset-0 overflow-hidden flex flex-col p-4 rounded-2xl border border-[hsl(0,0%,16%)] bg-[hsl(0,0%,8%)]";
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    FLOATING PARTICLES (Hero background)
@@ -214,19 +218,82 @@ const RotatingHeroLine = () => {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    HERO
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const scrollToId = (id: string) => {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+const PAGE_STOPS = [
+  { id: "transparency-reserves", path: "/frxUSD/backing", label: "Backing" },
+  { id: "opportunities", path: "/frxUSD/use", label: "Use" },
+  { id: "new-dollars", path: "/frxUSD/supply", label: "Supply" },
+] as const;
+
+const ExploreIndex = () => {
+  const [active, setActive] = useState<string>("");
+
+  useEffect(() => {
+    const onScroll = () => {
+      const mid = window.innerHeight * 0.42;
+      const hit = PAGE_STOPS.find((stop) => {
+        const node = document.getElementById(stop.id);
+        if (!node) return false;
+        const rect = node.getBoundingClientRect();
+        return rect.top < mid && rect.bottom > mid;
+      });
+      if (hit) setActive(hit.id);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const stop = PAGE_STOPS.find((item) => item.id === active);
+    if (!stop) return;
+    const timer = window.setTimeout(() => {
+      if (window.location.pathname !== stop.path) {
+        window.history.replaceState(null, "", stop.path);
+      }
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [active]);
+
+  return (
+    <nav className="explore-index" aria-label="On this page">
+      {PAGE_STOPS.map((stop) => (
+        <a
+          key={stop.id}
+          href={stop.path}
+          className={active === stop.id ? "is-on" : undefined}
+          onClick={(e) => {
+            e.preventDefault();
+            window.history.replaceState(null, "", stop.path);
+            scrollToId(stop.id);
+          }}
+        >
+          {stop.label}
+        </a>
+      ))}
+    </nav>
+  );
+};
+
 const Hero = () => {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], [0, 150]);
-  const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   const live = useFrxUsdLive();
   const { apr: liveApr } = useHeroApr();
 
-  const circulationM = (live.circulation || 138_900_000) / 1_000_000;
+  const circulationM = live.circulation > 0 ? Math.round(live.circulation / 1_000_000) : null;
 
-  const metrics = [
-    { label: "ALWAYS WORTH", prefix: "$", target: 1, decimals: 2, suffix: "", sub: "Stable, anytime", live: false },
-    { label: "In use", prefix: "≈ $", target: Math.round(circulationM), decimals: 0, suffix: "M", sub: "Dollars in circulation", live: true },
+  const metrics: Array<{
+    label: string;
+    prefix: string;
+    target: number | null;
+    decimals: number;
+    suffix: string;
+    sub: string;
+  }> = [
+    { label: "ALWAYS WORTH", prefix: "$", target: 1, decimals: 2, suffix: "", sub: "Stable, anytime" },
+    { label: "In use", prefix: "≈ $", target: circulationM, decimals: 0, suffix: "M", sub: "Dollars in circulation" },
     {
       label: "Your money can grow",
       prefix: "~",
@@ -234,39 +301,36 @@ const Hero = () => {
       decimals: 2,
       suffix: "%",
       sub: "yearly",
-      live: true,
     },
   ];
 
   return (
     <section
-      ref={ref}
-      className="min-h-[calc(100svh-var(--ticker-h)-var(--header-h)-var(--music-dock-h))] flex items-center justify-center px-5 md:px-6 pt-4 pb-3 relative overflow-hidden"
+      className="explore-hero flex items-center justify-center px-5 md:px-6 pt-12 pb-6 md:pt-8 md:pb-8 relative overflow-hidden"
     >
       <FloatingParticles />
-      <div className="absolute inset-0 pointer-events-none">
-        <LazyImg
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <img
           src="/learn/images/usd-coins-bg.png"
           alt=""
           width={1920}
           height={1080}
-          loading="eager"
+          decoding="async"
           fetchPriority="high"
-          className="w-full h-full object-cover opacity-[0.28] blur-[2px]"
-          style={{ opacity: 0.28 }}
+          className="explore-hero__bg"
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-[hsl(0,0%,4%)]/40 via-[hsl(0,0%,4%)]/20 to-[hsl(0,0%,4%)]/70 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0a0a0c]/80 pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[hsl(0,0%,95%)]/[0.05] blur-[180px] rounded-full pointer-events-none" />
 
-      <motion.div style={{ y, opacity }} className="relative z-10 text-center max-w-4xl mx-auto space-y-6">
+      <motion.div className="relative z-10 text-center max-w-4xl mx-auto space-y-4">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="inline-block border border-[hsl(0,0%,14%)]/60 bg-[hsl(0,0%,12%)]/40 rounded-full px-4 py-1.5 text-xs text-[hsl(0,0%,55%)]">
           frxUSD
         </motion.div>
 
         <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.6 }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] text-[hsl(0,0%,95%)]">
+          className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.08] text-[hsl(0,0%,95%)]">
           Your Dollar.<br /><RotatingHeroLine />
         </motion.h1>
 
@@ -276,33 +340,37 @@ const Hero = () => {
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }}
-          className="flex items-center justify-center gap-4 flex-wrap pt-2">
-          <a href="https://frax.com/swap" target="_blank" rel="noopener noreferrer"
-            className="px-8 py-4 bg-[hsl(0,0%,95%)] text-[hsl(0,0%,4%)] font-semibold rounded-full hover:bg-[hsl(0,0%,95%)]/90 hover:scale-[1.02] active:scale-[0.98] transition-all inline-flex items-center gap-2">
-            Get Dollars <ExternalLink className="w-4 h-4" />
-          </a>
-          <a href="https://docs.frax.com/frxusd" target="_blank" rel="noopener noreferrer"
-            className="px-8 py-4 border border-[hsl(0,0%,14%)] text-[hsl(0,0%,95%)] font-medium rounded-full hover:bg-[hsl(0,0%,12%)]/50 transition-all inline-flex items-center gap-2">
+          className="flex items-center justify-center gap-3 flex-wrap">
+          <button type="button" onClick={() => scrollToId("opportunities")}
+            className="px-7 py-3.5 bg-[hsl(0,0%,95%)] text-[hsl(0,0%,4%)] font-semibold rounded-full hover:bg-[hsl(0,0%,95%)]/90 hover:scale-[1.02] active:scale-[0.98] transition-all inline-flex items-center gap-2">
+            Use FrxUSD
+          </button>
+          <button type="button" onClick={() => scrollToId("benefits")}
+            className="px-7 py-3.5 border border-[hsl(0,0%,14%)] text-[hsl(0,0%,95%)] font-medium rounded-full hover:bg-[hsl(0,0%,12%)]/50 transition-all inline-flex items-center gap-2">
             <BookOpen className="w-4 h-4" /> How it works
-          </a>
+          </button>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto pt-2">
+          className="grid grid-cols-3 gap-3 max-w-3xl mx-auto">
           {metrics.map((m, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.9 + i * 0.08 }}
-              className={`${cardBase} p-5 text-center backdrop-blur-sm`}>
-              <p className="text-xs uppercase tracking-wider text-[hsl(0,0%,55%)]/80 mb-2">{m.label}</p>
-              <AnimatedCounter
-                key={`m-${i}-${m.target}`}
-                target={m.target}
-                prefix={m.prefix}
-                suffix={m.suffix}
-                decimals={m.decimals}
-                className="text-2xl font-bold text-[hsl(0,0%,95%)]"
-              />
-              <p className="text-[11px] text-[hsl(0,0%,55%)]/70 mt-1 leading-snug">{m.sub}</p>
+              className={`${cardBase} p-3 sm:p-4 text-center backdrop-blur-sm`}>
+              <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[hsl(0,0%,55%)]/80 mb-1.5">{m.label}</p>
+              {m.target == null ? (
+                <span className="text-lg sm:text-2xl font-bold text-[hsl(0,0%,95%)]">—</span>
+              ) : (
+                <AnimatedCounter
+                  key={`m-${i}-${m.target}`}
+                  target={m.target}
+                  prefix={m.prefix}
+                  suffix={m.suffix}
+                  decimals={m.decimals}
+                  className="text-lg sm:text-2xl font-bold text-[hsl(0,0%,95%)]"
+                />
+              )}
+              <p className="text-[10px] text-[hsl(0,0%,55%)]/70 mt-1 leading-snug">{m.sub}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -316,6 +384,7 @@ const Hero = () => {
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const scrollToReserves = (e: React.MouseEvent) => {
   e.stopPropagation();
+  window.dispatchEvent(new CustomEvent("oc-open-reserves"));
   const el = document.getElementById("transparency-reserves");
   if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 };
@@ -346,13 +415,13 @@ const benefitsData: Array<{
   },
   {
     icon: TrendingUp, title: "Your money can work for you", desc: "It doesn’t just sit there. It can slowly grow over time.",
-    back: "Your balance can slowly grow, based on current conditions.",
+    back: "Lend it, or pair it with another token. Each market below shows the live rate and what you do.",
   },
   {
     icon: Building2, title: "Backed by real money", desc: "Each dollar is backed by safe, real-world assets.",
     back: (
       <>
-        Each dollar is backed by safe, <ReserveLink>real-world assets</ReserveLink> you can see yourself.
+        Each dollar is backed by short-term U.S. government assets. <ReserveLink>Open the reserve list</ReserveLink> to see each fund.
       </>
     ),
   },
@@ -390,7 +459,7 @@ const FlipCard = ({ b, index, isInView }: { b: typeof benefitsData[number]; inde
       onHoverStart={() => setFlipped(true)}
       onHoverEnd={() => setFlipped(false)}
       onClick={() => setFlipped((f) => !f)}
-      className="group relative h-56 cursor-pointer"
+      className="group relative h-48 cursor-pointer"
       style={{ perspective: "1400px" }}
       role="button"
       tabIndex={0}
@@ -417,11 +486,11 @@ const FlipCard = ({ b, index, isInView }: { b: typeof benefitsData[number]; inde
           aria-hidden={flipped}
         >
           <div className="relative z-10 flex flex-col h-full">
-            <div className="p-3 rounded-xl bg-[hsl(0,0%,12%)] w-fit mb-5 border border-[hsl(0,0%,18%)]">
+            <div className="p-2.5 rounded-xl bg-[hsl(0,0%,12%)] w-fit mb-3 border border-[hsl(0,0%,18%)]">
               <b.icon className="w-5 h-5 text-[hsl(0,0%,95%)]" />
             </div>
-            <h3 className="text-base font-semibold text-[hsl(0,0%,95%)] mb-2">{b.title}</h3>
-            <p className="text-sm text-[hsl(0,0%,55%)] leading-relaxed">{b.desc}</p>
+            <h3 className="text-sm lg:text-base font-semibold text-[hsl(0,0%,95%)] mb-1.5">{b.title}</h3>
+            <p className="text-xs lg:text-sm text-[hsl(0,0%,55%)] leading-relaxed">{b.desc}</p>
             <p className="mt-auto text-[10px] uppercase tracking-[0.15em] text-[hsl(0,0%,40%)]">Hover to learn more</p>
           </div>
         </div>
@@ -451,10 +520,9 @@ const Benefits = () => {
   return (
     <Section id="benefits">
       <div ref={ref}>
-        <SectionLabel>Why people use it</SectionLabel>
         <SectionHeading>Why people use it</SectionHeading>
         <SectionSub>Simple. Works. Makes sense.</SectionSub>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mt-8">
           {benefitsData.map((b, i) => (
             <FlipCard key={i} b={b} index={i} isInView={isInView} />
           ))}
@@ -504,27 +572,25 @@ export const HowPeopleUseIt = () => {
           People use frxUSD for the same things they use normal money, just faster, cheaper, and without a bank in the middle.
         </SectionSub>
 
-        <div className="mt-12 -mx-6 px-6 md:mx-0 md:px-0 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none">
-          <div className="flex md:grid md:grid-cols-2 gap-5 min-w-max md:min-w-0">
-            {useCasesData.map((c, i) => (
-              <motion.div
-                key={c.n}
-                initial={{ opacity: 0, y: 24 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: i * 0.08, duration: 0.5 }}
-                className={`${cardBase} snap-start flex-shrink-0 w-[78vw] sm:w-[60vw] md:w-auto h-72 flex flex-col`}
-              >
-                <span className="text-xs font-mono tracking-[0.15em] text-[hsl(0,0%,40%)]">{c.n}</span>
-                <h3 className="mt-6 text-xl font-semibold text-[hsl(0,0%,95%)]">{c.title}</h3>
-                <p className="mt-3 text-sm text-[hsl(0,0%,55%)] leading-relaxed">{c.body}</p>
-                {c.showApr && (
-                  <span className="mt-4 inline-flex w-fit items-center rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-[11px] font-medium text-green-400">
-                    Currently ~{apr.toFixed(2)}% yearly
-                  </span>
-                )}
-              </motion.div>
-            ))}
-          </div>
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {useCasesData.map((c, i) => (
+            <motion.div
+              key={c.n}
+              initial={{ opacity: 0, y: 24 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: i * 0.08, duration: 0.5 }}
+              className={`${cardBase} flex flex-col`}
+            >
+              <span className="text-xs font-mono tracking-[0.15em] text-[hsl(0,0%,40%)]">{c.n}</span>
+              <h3 className="mt-4 text-lg font-semibold text-[hsl(0,0%,95%)]">{c.title}</h3>
+              <p className="mt-2 text-sm text-[hsl(0,0%,55%)] leading-relaxed">{c.body}</p>
+              {c.showApr && (
+                <span className="mt-3 inline-flex w-fit items-center rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-[11px] font-medium text-green-400">
+                  Currently ~{apr.toFixed(2)}% yearly
+                </span>
+              )}
+            </motion.div>
+          ))}
         </div>
       </div>
     </Section>
@@ -663,20 +729,51 @@ const PageFooter = () => (
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    MAIN PAGE
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-const ExploreBetterMoney = () => (
+const ExploreBetterMoney = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname.replace(/\/$/, "");
+    const open = path.endsWith("/backing")
+      ? "transparency-reserves"
+      : path.endsWith("/use")
+        ? "opportunities"
+        : path.endsWith("/supply")
+          ? "new-dollars"
+          : null;
+    if (!open) return;
+    const jump = () => {
+      document.getElementById(open)?.scrollIntoView({ behavior: "auto", block: "start" });
+    };
+    const timer = window.setTimeout(jump, 120);
+    const again = window.setTimeout(jump, 480);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(again);
+    };
+  }, [location.pathname]);
+
+  return (
   <div className="explore-better-money bg-[hsl(0,0%,4%)] text-[hsl(0,0%,95%)] overflow-x-hidden"
     style={{ scrollBehavior: "smooth" }}>
     <Seo
-      title="Explore Better Money, Live reserves and transparency"
-      description="See live reserves, APR, and transparency data for frxUSD, Frax's digital dollar built for the internet era."
-      path="/learn/explore-better-money"
+      title="frxUSD"
+      description="See live reserves, where frxUSD is used, and where new dollars are minted."
+      path="/frxUSD"
     />
     <Hero />
-    <Benefits />
-    <TransparencyReserves />
-    <CTASection />
-    <PageFooter />
+    <MeshGrid />
+    <div className="explore-below">
+      <ExploreIndex />
+      <Benefits />
+      <TransparencyReserves />
+      <ExploreFrxUsdOpportunities embedded />
+      <FrxUsdDesk embedded />
+      <CTASection />
+      <PageFooter />
+    </div>
   </div>
-);
+  );
+};
 
 export default ExploreBetterMoney;
