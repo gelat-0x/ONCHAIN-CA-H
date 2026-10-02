@@ -17,9 +17,7 @@
 .room--embedded {
   min-height: 0;
   overflow: visible;
-  background:
-    radial-gradient(ellipse 60% 36% at 50% 0%, hsl(0 0% 12% / 0.55), transparent 70%),
-    transparent;
+  background: transparent;
   padding: 1.5rem 1.25rem 1.5rem;
   border-top: 1px solid var(--line);
 }
@@ -252,7 +250,9 @@
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: hsl(0 0% 4% / 0.55);
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, hsl(214 42% 18% / 0.45), transparent 68%),
+    hsl(220 14% 6% / 0.42);
   padding: 0.85rem 0.95rem;
   box-sizing: border-box;
 }
@@ -1399,12 +1399,49 @@
 .adopt__seg--pegkeeper { background: hsl(204 70% 68%); }
 .adopt__seg--fraxnet { background: hsl(152 55% 58%); }
 
+.adopt__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.adopt__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.adopt__chips div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 7.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid hsl(0 0% 100% / 0.1);
+  background: hsl(0 0% 100% / 0.04);
+}
+
+.adopt__chips span {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.adopt__chips b {
+  font-size: 0.95rem;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+}
+
 .adopt__legend {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 1rem;
-  margin: 0.55rem 0 0;
+  gap: 0.35rem;
+  margin: 0;
   padding: 0;
 }
 
@@ -1412,6 +1449,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 10px;
+  border: 1px solid hsl(0 0% 100% / 0.08);
+  background: hsl(0 0% 100% / 0.03);
   font-size: 11px;
   color: var(--mute);
 }
@@ -1419,7 +1460,8 @@
 .adopt__legend i {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 .adopt__legend b {

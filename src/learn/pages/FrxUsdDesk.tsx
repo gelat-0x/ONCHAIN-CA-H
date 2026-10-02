@@ -53,7 +53,7 @@ function PeakCard({
   useEffect(() => {
     const id = window.setInterval(() => {
       setSide((current) => (current === 'mint' ? 'burn' : 'mint'));
-    }, 4000);
+    }, 7000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -76,7 +76,7 @@ function PeakCard({
           initial={{ opacity: 0, filter: 'blur(6px)' }}
           animate={{ opacity: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, filter: 'blur(6px)' }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
           <span>{copy.title}</span>
           <strong className="tabular-nums">{formatUsdMetric(copy.amount)}</strong>
@@ -253,7 +253,6 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
         <div>
           <div className="room__panel-head">
             <h2>Where supply sits</h2>
-            <p>Each square is one chain. Open it for the DEXes, PegKeepers, lending markets, and balances on that chain.</p>
           </div>
           <AdoptionMap adoption={data?.supplyMap?.adoption} />
           <SupplyBoard map={data?.supplyMap} chains={chains} />

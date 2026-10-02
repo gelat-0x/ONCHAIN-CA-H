@@ -11,6 +11,7 @@ import TransparencyReserves from "@learn/components/TransparencyReserves";
 import { useFrxUsdLive } from "@learn/hooks/useFrxUsdLive";
 import { useHeroApr } from "@learn/hooks/useHeroApr";
 import Seo from "@learn/components/Seo";
+import { MeshGrid } from "@learn/components/MeshGrid";
 import FrxUsdDesk from "./FrxUsdDesk";
 import ExploreFrxUsdOpportunities from "./ExploreFrxUsdOpportunities";
 
@@ -752,13 +753,16 @@ const ExploreBetterMoney = () => {
       path="/frxUSD"
     />
     <Hero />
-    <ExploreIndex />
-    <Benefits />
-    <TransparencyReserves />
-    <ExploreFrxUsdOpportunities embedded />
-    <FrxUsdDesk embedded />
-    <CTASection />
-    <PageFooter />
+    <MeshGrid />
+    <div className="explore-below">
+      <ExploreIndex />
+      <Benefits />
+      <TransparencyReserves />
+      <ExploreFrxUsdOpportunities embedded />
+      <FrxUsdDesk embedded />
+      <CTASection />
+      <PageFooter />
+    </div>
   </div>
   );
 };

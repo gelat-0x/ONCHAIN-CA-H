@@ -43,6 +43,7 @@ let cache: { ts: number; places: FrxUsdSupplyPlace[]; aave: { supplied: number; 
 function chainKey(name: string): string {
   const n = name.toLowerCase().trim();
   if (n === 'binance' || n === 'bnb' || n === 'bnb chain') return 'bsc';
+  if (n === 'hyperliquid' || n === 'hyperliquid l1') return 'hyperliquid';
   if (n === 'op mainnet' || n === 'op') return 'optimism';
   if (n === 'polygon pos' || n === 'matic') return 'polygon';
   if (n === 'avalanche c-chain' || n === 'avax') return 'avalanche';

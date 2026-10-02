@@ -224,7 +224,7 @@ export interface DefiLlamaYieldPool {
 
 export type FrxUsdOppCategory = 'vault' | 'lp';
 export type FrxUsdLpLane = 'pegkeeper' | 'fx' | 'amm' | 'compound' | 'boost';
-export type FrxUsdOppDoor = 'vault' | 'lend' | 'loop' | 'fx' | 'peg' | 'rwa' | 'boost';
+export type FrxUsdOppDoor = 'hold' | 'vault' | 'lend' | 'borrow' | 'fx' | 'peg' | 'rwa' | 'loop' | 'boost';
 
 export interface FrxUsdOppRow {
   id: string;

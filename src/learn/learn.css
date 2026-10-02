@@ -667,6 +667,27 @@
   margin-top: 1.75rem;
 }
 
+.explore-hero {
+  position: relative;
+  z-index: 2;
+  background: hsl(0 0% 4%);
+}
+
+.explore-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.16;
+}
+
+.explore-below {
+  position: relative;
+  z-index: 1;
+}
+
 .explore-hero__rotate {
   display: inline-block;
   min-width: 6ch;
@@ -1032,7 +1053,7 @@
 }
 .fxo-hero__lede {
   margin-top: 0.65rem;
-  max-width: 22rem;
+  max-width: 34rem;
   color: var(--mute);
   font-size: 1.08rem;
   letter-spacing: -0.02em;
@@ -1741,8 +1762,8 @@
   padding: 1rem;
   padding-top: calc(var(--ticker-h) + var(--header-h) + 1rem);
   padding-bottom: calc(var(--music-dock-h) + 1rem);
-  background: hsl(0 0% 2% / 0.7);
-  backdrop-filter: blur(8px);
+  background: hsl(0 0% 2% / 0.46);
+  backdrop-filter: blur(4px);
 }
 .fxo-modal__card {
   position: relative;
@@ -1755,7 +1776,10 @@
   padding: 1.25rem 1.3rem 1.15rem;
 }
 .fxo-modal__card--markets {
-  width: min(44rem, 100%);
+  width: min(52rem, 100%);
+}
+.fxo-modal__card--chains {
+  width: min(28rem, 100%);
 }
 .fxo-modal__card--markets .fxo-markets header {
   padding-left: 2.4rem;
@@ -1839,6 +1863,7 @@
   margin: 1.35rem 0 0.5rem;
 }
 .fxo-door {
+  position: relative;
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr);
   gap: 0.9rem;
@@ -1847,31 +1872,38 @@
   padding: 0.95rem 1rem;
   border-radius: 18px;
   border: 1px solid hsl(0 0% 100% / 0.08);
-  background: linear-gradient(180deg, hsl(0 0% 100% / 0.045), hsl(0 0% 100% / 0.02));
+  background:
+    linear-gradient(105deg, hsl(0 0% 5% / 0.88), hsl(0 0% 6% / 0.62)),
+    url('../assets/show/episode-overlay.jpg') center 22% / cover no-repeat;
   color: inherit;
   text-align: left;
+  overflow: hidden;
 }
 .fxo-door.is-open {
   border-color: hsl(0 0% 100% / 0.28);
   background: hsl(0 0% 100% / 0.06);
 }
 .fxo-door__art {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.28rem;
+  gap: 0.35rem;
   height: 84px;
   border-radius: 14px;
-  background:
-    radial-gradient(circle at 50% 40%, hsl(0 0% 100% / 0.08), transparent 70%),
-    hsl(0 0% 0% / 0.35);
+  background: hsl(0 0% 4% / 0.45);
 }
 .fxo-door__art img,
 .fxo-door__art .fxo-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: contain;
+  object-position: center;
+  background: hsl(0 0% 8% / 0.8);
+  padding: 3px;
+  box-sizing: border-box;
 }
 .fxo-mark {
   display: grid;
@@ -1905,6 +1937,72 @@
   font-size: 12px;
   color: #4ade80;
 }
+.fxo-door__note {
+  color: hsl(0 0% 58%) !important;
+  font-size: 12px !important;
+}
+.fxo-badge {
+  align-self: flex-start;
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsl(0 0% 78%);
+  border: 1px solid hsl(0 0% 100% / 0.16);
+  border-radius: 999px;
+  padding: 0.12rem 0.42rem;
+}
+.fxo-chain-btn {
+  margin-top: 0.85rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid hsl(0 0% 100% / 0.14);
+  background: hsl(0 0% 100% / 0.04);
+  color: hsl(0 0% 82%);
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+.fxo-chain-btn:hover { color: white; border-color: hsl(0 0% 100% / 0.28); }
+.fxo-bychain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.35rem;
+}
+.fxo-bychain section h4 { margin: 0 0 0.35rem; }
+.fxo-bychain ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+.fxo-bychain li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.32rem 0;
+  border-top: 1px solid hsl(0 0% 100% / 0.06);
+}
+.fxo-bychain li img,
+.fxo-bychain li .fxo-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+.fxo-bychain li span { display: flex; flex-direction: column; min-width: 0; }
+.fxo-bychain li b { font-size: 13px; font-weight: 550; letter-spacing: -0.02em; }
+.fxo-bychain li small { color: var(--mute); font-size: 11px; }
+.fxo-bychain li strong.is-rate {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ade80;
+  font-variant-numeric: tabular-nums;
+}
+.fxo-bychain li strong.is-soft { color: hsl(152 20% 70%); }
 
 .fxo-markets {
   margin-top: 0.85rem;
@@ -1992,7 +2090,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  padding: 0 0.95rem 0.85rem 3.55rem;
+  padding: 0.15rem 1.05rem 0.95rem;
 }
 .fxo-markets__empty { margin: 0; color: var(--mute); font-size: 13px; }
 .fxo-market-group li > img,

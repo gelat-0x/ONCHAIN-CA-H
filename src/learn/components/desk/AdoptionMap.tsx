@@ -40,19 +40,32 @@ export function AdoptionMap({ adoption }: { adoption?: FrxUsdAdoption }) {
             <b className="tabular-nums">{formatUsdMetric(total)}</b>
           </span>
         </div>
-        <ul className="adopt__legend">
-          {slices.map((slice) => (
-            <li key={slice.id}>
-              <i style={{ background: COLOR[slice.id] }} />
-              {slice.label}
-              <b className="tabular-nums">{formatUsdMetric(slice.usd)}</b>
-            </li>
-          ))}
-        </ul>
+        <div className="adopt__side">
+          <div className="adopt__chips">
+            {adoption.lendingDeposited > 0 ? (
+              <div>
+                <span>In lending</span>
+                <b className="tabular-nums">{formatUsdMetric(adoption.lendingDeposited)}</b>
+              </div>
+            ) : null}
+            {adoption.lendingBorrowed > 0 ? (
+              <div>
+                <span>Borrowed out</span>
+                <b className="tabular-nums">{formatUsdMetric(adoption.lendingBorrowed)}</b>
+              </div>
+            ) : null}
+          </div>
+          <ul className="adopt__legend">
+            {slices.map((slice) => (
+              <li key={slice.id}>
+                <i style={{ background: COLOR[slice.id] }} />
+                <span>{slice.label}</span>
+                <b className="tabular-nums">{formatUsdMetric(slice.usd)}</b>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-      <p className="adopt__sum">
-        PegKeepers and LP pools, FX markets, tokenized assets, lending, and Frax’s own markets. Held is frxUSD not in those venues. Robinhood Chain is included from Fables and GigaDEX.
-      </p>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { ArrowUpRight, X } from 'lucide-react';
 
 import Seo from '@learn/components/Seo';
 import stakeDaoMark from '../../assets/stakedao-boost.png';
+import { useHeroApr } from '@learn/hooks/useHeroApr';
 import { fetchFrxUsdOpportunities } from '../../services/api';
 import {
   fallbackOpportunityLive,
@@ -18,48 +19,63 @@ function fmtApy(n: number) {
   return `${n.toFixed(1)}%`;
 }
 
-const DOORS: Array<{ id: FrxUsdOppDoor; title: string; line: string; logos: string[] }> = [
+const DOORS: Array<{ id: FrxUsdOppDoor; title: string; line: string; note?: string; logos: string[]; advanced?: boolean }> = [
+  {
+    id: 'hold',
+    title: 'Hold on FraxNet',
+    line: 'KYC once. Hold frxUSD. Earn the reserve yield.',
+    note: 'Or swap to sfrxUSD with no KYC. Higher yield, and not riskless.',
+    logos: ['frax'],
+  },
   {
     id: 'vault',
-    title: 'Vaults',
+    title: 'Put in a vault',
     line: 'Deposit frxUSD once. The vault lends it and sends the interest back.',
     logos: ['morpho', 'concrete', 'etherfi'],
   },
   {
     id: 'lend',
-    title: 'Lending / borrowing',
-    line: 'You lend frxUSD in a market. Borrowers pay you. You can also borrow against collateral.',
+    title: 'Lend',
+    line: 'Supply frxUSD. Borrowers pay you.',
     logos: ['aave', 'fraxlend', 'resupply'],
   },
   {
-    id: 'loop',
-    title: 'Looping strategies',
-    line: 'Post a token that already earns, then borrow frxUSD against it. The loop exists for the gap: that yield is meant to beat the cost of the loan.',
-    logos: ['frax'],
+    id: 'borrow',
+    title: 'Borrow',
+    line: 'Post collateral and borrow frxUSD. You pay the borrow rate.',
+    logos: ['aave', 'fraxlend', 'resupply'],
   },
   {
     id: 'fx',
-    title: 'FX LP pairs',
-    line: 'Add frxUSD and a foreign currency. You earn swap fees when people trade the pair.',
+    title: 'LP',
+    line: 'Pair frxUSD with another token, including a foreign currency. You earn swap fees.',
     logos: ['curve', 'aerodrome'],
   },
   {
     id: 'peg',
     title: 'PegKeeper LP',
-    line: 'Add frxUSD and another dollar on Curve. Uniswap dollar pairs are listed apart.',
+    line: 'Pair frxUSD with another dollar so the price stays near $1.',
     logos: ['curve', 'uniswap'],
   },
   {
     id: 'rwa',
     title: 'Tokenized assets',
-    line: 'Pair frxUSD with a tokenized stock or bond on GigaDEX. You earn the swap fee when someone trades.',
-    logos: ['frax'],
+    line: 'GigaDEX, Midas, and Gearbox. Tokenized funds, stocks, and bonds next to frxUSD.',
+    logos: ['giga', 'midas', 'gearbox'],
+  },
+  {
+    id: 'loop',
+    title: 'Loop',
+    line: 'Post an asset that earns, then borrow frxUSD against it. The gap is the strategy. Gearbox, Midas, Resupply, and similar markets.',
+    logos: ['gearbox', 'midas', 'resupply'],
+    advanced: true,
   },
   {
     id: 'boost',
     title: 'Boost your LPs',
     line: 'You already hold a Curve LP. Stake it for extra rewards, or let a vault compound them.',
     logos: ['stakedao', 'convex', 'beefy'],
+    advanced: true,
   },
 ];
 
@@ -352,7 +368,9 @@ const DoorWindow = ({
 const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }) => {
   const [live, setLive] = useState<FrxUsdOppLive>(fallbackOpportunityLive);
   const [door, setDoor] = useState<FrxUsdOppDoor | null>(null);
+  const [chainsOpen, setChainsOpen] = useState(false);
   const [stakeOpen, setStakeOpen] = useState(false);
+  const { apr: reserveApr } = useHeroApr();
 
   useEffect(() => {
     let cancelled = false;
@@ -364,10 +382,26 @@ const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }
     };
   }, []);
 
-  const markets = useMemo(
-    () => live.rows.filter((row) => row.door),
-    [live.rows],
-  );
+  const markets = useMemo(() => {
+    const rows = live.rows.filter((row) => row.door);
+    const hold: FrxUsdOppRow = {
+      id: 'fraxnet-hold',
+      venue: 'frax',
+      category: 'vault',
+      door: 'hold',
+      group: 'FraxNet',
+      name: 'Hold frxUSD',
+      pair: 'frxUSD',
+      chain: 'Ethereum',
+      chains: ['Ethereum'],
+      apy: reserveApr > 0 ? reserveApr : 0,
+      happens:
+        'After KYC on FraxNet, frxUSD sitting in your wallet earns the reserve yield. The reserves are short-term U.S. government assets, so this is the riskless path. You can also swap to sfrxUSD with no KYC. That yield is higher on a risk-adjusted basis, and it is not riskless.',
+      youDo: 'Complete KYC on FraxNet and hold frxUSD. The rate on FraxNet is the one that counts.',
+      href: 'https://net.frax.com',
+    };
+    return rows.some((row) => row.door === 'hold') ? rows : [hold, ...rows];
+  }, [live.rows, reserveApr]);
 
   const openDoor = (id: FrxUsdOppDoor) => {
     setDoor(id);
@@ -382,13 +416,16 @@ const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }
         path="/learn/explore-frxusd-opportunities"
       />
       )}
-      <Backdrop paused={stakeOpen} />
+      {embedded ? null : <Backdrop paused={stakeOpen} />}
 
       <div className="fxo-wrap">
         <header className="fxo-hero">
           <h1>Use your frxUSD</h1>
-          <p className="fxo-hero__lede">Put it in a vault or pair it with another token.</p>
+          <p className="fxo-hero__lede">Put in a vault, lend, borrow, loop, or pair with another token.</p>
           <HeroRotator live={live} />
+          <button type="button" className="fxo-chain-btn" onClick={() => setChainsOpen(true)}>
+            See opportunities per chain
+          </button>
         </header>
 
         <section className="fxo-doors" aria-label="Ways to use frxUSD">
@@ -410,30 +447,27 @@ const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }
                 onClick={() => openDoor(item.id)}
               >
                 <span className="fxo-door__art" aria-hidden>
-                  {item.id === 'loop' ? (
-                    <>
-                      <span className="fxo-mark">G</span>
-                      <span className="fxo-mark">M</span>
-                    </>
-                  ) : (
-                    item.logos.map((logo) => <Logo key={logo} id={logo} />)
-                  )}
+                  {item.logos.map((logo) => <Logo key={logo} id={logo} />)}
                 </span>
                 <span className="fxo-door__copy">
+                  {item.advanced ? <i className="fxo-badge">Advanced</i> : null}
                   <b>{item.title}</b>
                   <small>{item.line}</small>
+                  {item.note ? <small className="fxo-door__note">{item.note}</small> : null}
                   <em>
                     {deep
-                      ? `${deep.name} · ${fmtApy(deep.apy)}`
-                      : item.id === 'loop'
-                        ? 'Gearbox × Midas · rate on the venue'
-                        : 'Open a market'}
+                      ? `${deep.name} · ${item.id === 'hold' ? `${fmtApy(deep.apy)} reserve` : fmtApy(deep.apy)}`
+                      : 'See rate'}
                   </em>
                 </span>
               </button>
             );
           })}
         </section>
+
+        {chainsOpen ? (
+          <ChainPlaces rows={markets} onClose={() => setChainsOpen(false)} />
+        ) : null}
 
         {door ? (
           <DoorWindow
@@ -464,6 +498,71 @@ const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }
         onClose={() => setStakeOpen(false)}
       />
     </div>
+  );
+};
+
+const ChainPlaces = ({ rows, onClose }: { rows: FrxUsdOppRow[]; onClose: () => void }) => {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  const groups = new Map<string, FrxUsdOppRow[]>();
+  for (const row of rows) {
+    const names = row.chains?.length ? row.chains : [row.chain];
+    for (const name of names) {
+      const list = groups.get(name) ?? [];
+      if (!list.some((item) => item.id === row.id)) list.push(row);
+      groups.set(name, list);
+    }
+  }
+  const chains = [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+
+  return createPortal(
+    <div className="fxo-modal" role="dialog" aria-modal="true" aria-label="Opportunities by chain" onClick={onClose}>
+      <div className="fxo-modal__card fxo-modal__card--chains" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="fxo-modal__close" onClick={onClose} aria-label="Close">
+          <X className="w-4 h-4" />
+        </button>
+        <header className="fxo-modal__head">
+          <div>
+            <h3>By chain</h3>
+          </div>
+        </header>
+        <div className="fxo-bychain">
+          {chains.map(([chain, list]) => (
+            <section key={chain}>
+              <h4>
+                <ChainChip name={chain} />
+              </h4>
+              <ul>
+                {list.map((row) => (
+                  <li key={`${chain}-${row.id}`}>
+                    <Logo id={row.venue} />
+                    <span>
+                      <b>{row.name}</b>
+                      <small>{DOORS.find((door) => door.id === row.door)?.title ?? row.group}</small>
+                    </span>
+                    <strong className={row.apy > 0 ? 'is-rate' : 'is-rate is-soft'}>
+                      {row.apy > 0 ? fmtApy(row.apy) : 'See rate'}
+                    </strong>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 };
 

@@ -83,6 +83,96 @@ function allTimeFromDaily(days: FrxUsdMintRedeemDay[]): {
   return { mintAll, redeemAll, netAll: roundCents(mintAll - redeemAll) };
 }
 
+const BALANCE_SHEET_URL = 'https://api.frax.finance/v2/frxusd/balance-sheet/latest';
+
+const SHEET_CHAIN: Record<string, string> = {
+  ethereum: 'Ethereum',
+  fraxtal: 'Fraxtal',
+  abstract: 'Abstract',
+  aptos: 'Aptos',
+  arbitrum: 'Arbitrum',
+  avalanche: 'Avalanche',
+  base: 'Base',
+  blast: 'Blast',
+  berachain: 'Berachain',
+  bsc: 'BSC',
+  hyperliquid: 'Hyperliquid',
+  ink: 'Ink',
+  linea: 'Linea',
+  katana: 'Katana',
+  mode: 'Mode',
+  monad: 'Monad',
+  movement: 'Movement',
+  optimism: 'OP Mainnet',
+  plume: 'Plume',
+  polygon: 'Polygon',
+  polygon_zkevm: 'Polygon zkEVM',
+  scroll: 'Scroll',
+  stable: 'Stable',
+  sei: 'Sei',
+  solana: 'Solana',
+  somnia: 'Somnia',
+  sonic: 'Sonic',
+  tempo: 'Tempo',
+  unichain: 'Unichain',
+  worldchain: 'World Chain',
+  xlayer: 'X Layer',
+  zksync: 'zkSync',
+};
+
+/** Official circulation by chain. Ethereum is net of the Fraxtal bridge lock. */
+function chainSupplyFromBalanceSheet(
+  liabilities: { description?: string; totalValueUsd?: number }[],
+): FrxUsdChainSupply[] {
+  let ethGross = 0;
+  let ethBridge = 0;
+  const map = new Map<string, number>();
+  for (const row of liabilities) {
+    const usd = Number(row.totalValueUsd) || 0;
+    const desc = row.description ?? '';
+    if (/fraxtal l1 bridge/i.test(desc)) {
+      ethBridge += usd;
+      continue;
+    }
+    const match = desc.match(/total supply of frxusd on ([a-z0-9_]+)/i);
+    if (!match) continue;
+    const id = match[1].toLowerCase();
+    if (id === 'ethereum') {
+      ethGross += usd;
+      continue;
+    }
+    const label = SHEET_CHAIN[id] ?? id;
+    map.set(label, (map.get(label) ?? 0) + usd);
+  }
+  const ethNet = ethGross + ethBridge;
+  if (ethNet > 1_000) map.set('Ethereum', ethNet);
+  const rows = [...map.entries()]
+    .map(([chain, circulating]) => ({ chain, circulating: Math.round(circulating) }))
+    .filter((row) => row.circulating > 0)
+    .sort((a, b) => b.circulating - a.circulating);
+  const total = rows.reduce((sum, row) => sum + row.circulating, 0) || 1;
+  return rows.map((row) => ({
+    ...row,
+    sharePct: Math.round((row.circulating / total) * 10_000) / 100,
+  }));
+}
+
+async function fetchOfficialChainSupply(): Promise<FrxUsdChainSupply[] | null> {
+  try {
+    const res = await fetch(BALANCE_SHEET_URL, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { liabilities?: { description?: string; totalValueUsd?: number }[] };
+    const rows = chainSupplyFromBalanceSheet(json.liabilities ?? []);
+    return rows.length ? rows : null;
+  } catch (error) {
+    console.warn('[frxUsdMintRedeem] balance sheet chains failed:', error);
+    return null;
+  }
+}
+
 function chainSupplyFromDefiLlama(
   chainCirculating?: Record<string, { current?: { peggedUSD?: number } }>,
 ): FrxUsdChainSupply[] {
@@ -344,15 +434,18 @@ export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemD
   if (cache && Date.now() - cache.ts < CACHE_MS) return cache.data;
 
   const now = Date.now();
-  const [assets, frxId, latestBlock] = await Promise.all([
+  const [assets, frxId, latestBlock, officialChains] = await Promise.all([
     fetchDefiLlamaStablecoins(),
     fetchFrxUsdStablecoinId(),
     ethBlockNumber(),
+    fetchOfficialChainSupply(),
   ]);
 
   const frxAsset = findFrxUsdAsset(assets);
-  const circulating = Math.round(Number(frxAsset?.circulating?.peggedUSD) || 0);
-  const chainSupply = chainSupplyFromDefiLlama(frxAsset?.chainCirculating);
+  const llamaSupply = chainSupplyFromDefiLlama(frxAsset?.chainCirculating);
+  const chainSupply = officialChains ?? llamaSupply;
+  const circulating = chainSupply.reduce((sum, row) => sum + row.circulating, 0)
+    || Math.round(Number(frxAsset?.circulating?.peggedUSD) || 0);
 
   const fromBlock = latestBlock ? Math.max(0, latestBlock - BLOCKS_PER_DAY * LOG_LOOKBACK_DAYS) : 0;
   const [supplyPoints, tokenEvents] = await Promise.all([
