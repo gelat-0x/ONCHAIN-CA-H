@@ -5,6 +5,7 @@ import {
   Shield, ChevronDown, ChevronUp, ExternalLink, RefreshCw,
 } from "lucide-react";
 import { useFrxUsdLive } from "@learn/hooks/useFrxUsdLive";
+import { assetLogoSrc } from "@learn/lib/deskMarks";
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    CONSTANTS & TYPES
@@ -34,50 +35,55 @@ const ASSET_GLOW: Record<string, string> = {
 const FUND_META: Record<string, { name: string; desc: string; details: Record<string, string>; url: string }> = {
   BUIDL: {
     name: "BUIDL",
-    desc: "Managed fund backed by U.S. assets.",
+    desc: "BlackRock USD Institutional Digital Liquidity Fund. Cash, U.S. Treasury bills, and repurchase agreements.",
     details: { admin: "BlackRock", custodian: "BNY Mellon", agent: "Securitize", auditor: "PwC" },
     url: "https://securitize.io/buidl",
   },
   USTB: {
     name: "USTB",
-    desc: "Short-term U.S. Treasury fund from Superstate.",
+    desc: "Superstate Short Duration US Government Securities Fund. Short-term U.S. Treasury bills, held in the frxUSD redemption contract.",
     details: { admin: "Superstate", custodian: "UMB Financial", agent: "Superstate", auditor: "Ernst & Young" },
     url: "https://superstate.co",
   },
   USCC: {
     name: "USCC",
-    desc: "Cash-equivalent reserve asset held in regulated custody.",
-    details: { admin: "Reserve manager", custodian: "Regulated custodian", agent: "Transfer agent", auditor: "Independent auditor" },
-    url: "https://frax.com/Transparency",
+    desc: "Superstate Crypto Carry Fund. Held with the frxUSD reserves.",
+    details: { admin: "Superstate", custodian: "UMB Financial", agent: "Superstate", auditor: "Ernst & Young" },
+    url: "https://superstate.com/uscc",
   },
   WTGXX: {
     name: "WTGXX",
-    desc: "Government money market fund.",
-    details: { admin: "WisdomTree", custodian: "State Street", agent: "WisdomTree", auditor: "KPMG" },
-    url: "https://wisdomtree.com",
+    desc: "WisdomTree Government Money Market Digital Fund. Held in Frax Inc’s BitGo trust account.",
+    details: { admin: "WisdomTree", custodian: "BitGo Trust", agent: "WisdomTree", auditor: "KPMG" },
+    url: "https://www.wisdomtree.com/investments/digital-funds/money-market/wtgxx",
   },
   USDB: {
     name: "USDB",
-    desc: "Backed 1:1 by cash and short-term funds.",
-    details: { admin: "Bridge", custodian: "Bridge Financial", agent: "Bridge", auditor: "Deloitte" },
+    desc: "USDB held in the primary multisig on Solana.",
+    details: { admin: "Bridge", custodian: "Primary multisig", agent: "Bridge", chain: "Solana" },
     url: "https://bridge.xyz",
   },
   USDC: {
     name: "USDC",
-    desc: "Digital dollar backed 1:1 by cash.",
-    details: { admin: "Circle", custodian: "Multiple", agent: "Circle", auditor: "Deloitte" },
-    url: "https://circle.com",
+    desc: "Circle’s dollar. Cash and short-term U.S. Treasuries.",
+    details: { admin: "Circle", custodian: "Regulated banks", agent: "Circle", auditor: "Deloitte" },
+    url: "https://www.circle.com/usdc",
+  },
+  AUSD: {
+    name: "AUSD",
+    desc: "Agora dollar held with the frxUSD reserves.",
+    details: { admin: "Agora", custodian: "Agora", agent: "Agora" },
+    url: "https://www.agora.finance",
   },
   EREBOR_USD: {
-    name: "Erebor USD",
-    desc: "Segregated FDIC-insured reserve account at Erebor Bank, N.A., backing frxUSD.",
+    name: "Erebor",
+    desc: "FBO frxUSD Stablecoin Reserve Account. A segregated FDIC-insured Erebor Bank account holding reserves for frxUSD.",
     details: {
       bank: "Erebor Bank, N.A.",
       insurance: "FDIC member bank",
       account: "FBO frxUSD Reserve",
-      note: "More reserve details are being added as disclosures become available.",
     },
-    url: "https://frax.com/Transparency",
+    url: "https://frax.com/transparency",
   },
 };
 
@@ -307,10 +313,19 @@ const SupplyVsBacking = ({ circulation, reserves, assets }: {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    ASSET CARD
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-const AssetCard = ({ asset }: { asset: ReserveAsset }) => {
-  const [open, setOpen] = useState(false);
+const AssetCard = ({
+  asset,
+  open,
+  onToggle,
+}: {
+  asset: ReserveAsset;
+  open: boolean;
+  onToggle: () => void;
+}) => {
   const meta = FUND_META[asset.ticker];
   if (!meta) return null;
+  const src = assetLogoSrc(asset.ticker);
+  const plate = asset.ticker === "USDB";
 
   return (
     <motion.div
@@ -321,10 +336,15 @@ const AssetCard = ({ asset }: { asset: ReserveAsset }) => {
       className="rounded-2xl border border-[hsl(0,0%,14%)]/40 bg-[hsl(0,0%,7%)]/40 
         shadow-[0_0_24px_rgba(255,255,255,0.03)] hover:shadow-[0_0_36px_rgba(255,255,255,0.06)]
         hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
-      <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-5 text-left group">
+      <button onClick={onToggle}
+        className="w-full flex items-center justify-between p-5 text-left group"
+        aria-expanded={open}>
         <div className="flex items-center gap-3">
-          <div className="w-3 h-8 rounded-full" style={{ background: asset.color, boxShadow: `0 0 12px ${asset.glow}` }} />
+          {src ? (
+            <img src={src} alt="" className={`reserve-asset-logo${plate ? " is-plate" : ""}`} />
+          ) : (
+            <div className="w-3 h-8 rounded-full" style={{ background: asset.color, boxShadow: `0 0 12px ${asset.glow}` }} />
+          )}
           <div>
             <span className="text-sm font-semibold text-[hsl(0,0%,95%)]">{displayTicker(asset.ticker)}</span>
             <span className="text-xs text-[hsl(0,0%,50%)] ml-2 hidden sm:inline">{meta.name}</span>
@@ -342,9 +362,6 @@ const AssetCard = ({ asset }: { asset: ReserveAsset }) => {
             exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
             <div className="px-5 pb-5 border-t border-[hsl(0,0%,14%)]/30">
               <p className="text-sm text-[hsl(0,0%,55%)] leading-relaxed mt-4 mb-4">{meta.desc}</p>
-              <p className="text-xs text-[hsl(0,0%,45%)] leading-relaxed mb-4 italic">
-                More reserve details are being added as disclosures become available.
-              </p>
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {Object.entries(meta.details).map(([key, val]) => (
                   <div key={key}>
@@ -392,8 +409,16 @@ const useTimeAgo = (date: Date) => {
 const TransparencyReserves = () => {
   const live = useFrxUsdLive();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [openTicker, setOpenTicker] = useState<string | null>(null);
   const sectionRef = useRef(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
+
+  useEffect(() => {
+    const openReserves = () => setOpen(true);
+    window.addEventListener("oc-open-reserves", openReserves);
+    return () => window.removeEventListener("oc-open-reserves", openReserves);
+  }, []);
 
   // Map live assets to the visualisation shape (color + glow).
   const data: TransparencyData = {
@@ -413,7 +438,7 @@ const TransparencyReserves = () => {
   const timeAgo = useTimeAgo(data.updatedAt);
 
   return (
-    <section id="transparency-reserves" className="py-28 px-6 lg:px-8 relative">
+    <section id="transparency-reserves" className="py-10 md:py-16 px-5 md:px-6 lg:px-8 relative">
       {/* Divider */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-px bg-gradient-to-r from-transparent via-[hsl(0,0%,14%)] to-transparent" />
 
@@ -422,22 +447,70 @@ const TransparencyReserves = () => {
         style={{ background: "radial-gradient(circle, rgba(74,144,217,0.04) 0%, rgba(212,168,67,0.03) 40%, transparent 70%)" }} />
 
       <div className="max-w-6xl mx-auto relative" ref={sectionRef}>
-        {/* Header */}
-        <div className="mb-14">
-          <p className="text-xs uppercase tracking-[0.2em] text-[hsl(0,0%,55%)] font-medium mb-4">
-            Reserves
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[hsl(0,0%,95%)] mb-4">
-            Real money behind it
-          </h2>
-          <p className="text-sm text-[hsl(0,0%,55%)] leading-relaxed max-w-2xl mb-3">
-            Every dollar is backed by real money you can check.
-          </p>
-          <p className="text-sm text-[hsl(0,0%,70%)] leading-relaxed max-w-2xl">
-            The money is held in safe, short-term U.S. government assets.
-          </p>
-        </div>
+        {(() => {
+          const tickers = data.assets.length
+            ? data.assets.map((asset) => asset.ticker)
+            : ["WTGXX", "USTB", "BUIDL", "USDC", "AUSD", "USDB", "EREBOR_USD"];
+          const amount =
+            data.reserves > 0
+              ? `$${(data.reserves / 1_000_000).toFixed(1)}m backing the dollar`
+              : "Backing the dollar";
+          if (!open) {
+            const tease = tickers
+              .map((ticker) => ({ ticker, src: assetLogoSrc(ticker) }))
+              .filter((item): item is { ticker: string; src: string } => Boolean(item.src))
+              .slice(0, 5);
+            return (
+              <div className="reserve-tease">
+                <div className="reserve-tease__marks" aria-hidden>
+                  {tease.map((item) => (
+                    <img
+                      key={item.ticker}
+                      src={item.src}
+                      alt=""
+                      className={item.ticker === "USDB" ? "is-plate" : ""}
+                    />
+                  ))}
+                </div>
+                <h2>Real money behind it</h2>
+                <p className="reserve-tease__amt">{amount}</p>
+                <p className="reserve-tease__line">
+                  Short-term U.S. government assets stand behind every dollar.
+                </p>
+                <button type="button" className="reserve-more" aria-expanded={false} onClick={() => setOpen(true)}>
+                  See more
+                </button>
+              </div>
+            );
+          }
+          return (
+            <div className="reserve-gate reserve-gate--still">
+              <span className="reserve-orbit" aria-hidden>
+                <span className="reserve-orbit__ring">
+                  {tickers.map((ticker, i, list) => {
+                    const src = assetLogoSrc(ticker);
+                    if (!src) return null;
+                    return (
+                      <span key={ticker} className="reserve-orbit__slot" style={{ ["--i" as string]: i, ["--n" as string]: list.length }}>
+                        <img src={src} alt="" className={ticker === "USDB" ? "is-plate" : ""} />
+                      </span>
+                    );
+                  })}
+                </span>
+              </span>
+              <span className="reserve-gate__copy">
+                <b>Real money behind it</b>
+                <small>{amount}</small>
+                <button type="button" className="reserve-more" aria-expanded onClick={() => setOpen(false)}>
+                  See less
+                </button>
+              </span>
+            </div>
+          );
+        })()}
 
+        {open ? (
+        <>
         {/* Loading shimmer */}
         {loading && (
           <div className="flex items-center gap-2 mb-6">
@@ -483,7 +556,12 @@ const TransparencyReserves = () => {
               Reserve Asset Breakdown
             </p>
             {data.assets.map((a) => (
-              <AssetCard key={a.ticker} asset={a} />
+              <AssetCard
+                key={a.ticker}
+                asset={a}
+                open={openTicker === a.ticker}
+                onToggle={() => setOpenTicker((current) => (current === a.ticker ? null : a.ticker))}
+              />
             ))}
 
             {/* Proof of reserves link */}
@@ -512,6 +590,8 @@ const TransparencyReserves = () => {
             <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </a>
         </motion.div>
+        </>
+        ) : null}
       </div>
     </section>
   );

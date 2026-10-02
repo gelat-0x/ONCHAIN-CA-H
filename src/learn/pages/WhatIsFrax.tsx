@@ -264,7 +264,7 @@ const SpendCard = () => {
               <button onClick={() => setPage(1)} className="inline-flex items-center gap-2 text-[15px] text-muted-foreground hover:text-foreground transition-colors duration-200">
                 <ArrowLeft className="w-4 h-4" /> Back
               </button>
-              <Link to="/learn/explore-better-money" className="inline-flex items-center gap-2 text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-200">
+              <Link to="/frxUSD" className="inline-flex items-center gap-2 text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-200">
                 See more on Better Money page <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -508,7 +508,7 @@ const WhatIsFrax = () => {
           transition={{ delay: 0.1, duration: 0.4 }}
         >
           <Link
-            to="/learn/explore-better-money"
+            to="/frxUSD"
             className="inline-block rounded-xl border-2 border-foreground bg-foreground px-7 py-3.5 text-[17px] font-bold text-background hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200"
           >
             Explore Better Money

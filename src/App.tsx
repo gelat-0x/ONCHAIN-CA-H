@@ -16,6 +16,7 @@ const ContentStudioPage = lazy(() =>
   import('./pages/ContentStudio').then((m) => ({ default: m.ContentStudioPage })),
 );
 const LearnPage = lazy(() => import('./pages/Learn').then((m) => ({ default: m.LearnPage })));
+const FrxUsdPage = lazy(() => import('./pages/FrxUsdPage').then((m) => ({ default: m.FrxUsdPage })));
 
 export default function App() {
   useEffect(() => {
@@ -37,6 +38,8 @@ export default function App() {
             <Route path="/show" element={<ShowPage />} />
             <Route path="/news" element={<Navigate to="/" replace />} />
             <Route path="/studio" element={<ContentStudioPage />} />
+            <Route path="/frxUSD" element={<FrxUsdPage />} />
+            <Route path="/frxUSD/*" element={<FrxUsdPage />} />
             <Route path="/learn/*" element={<LearnPage />} />
             <Route path="/alpha" element={<Navigate to="/" replace />} />
           </Routes>

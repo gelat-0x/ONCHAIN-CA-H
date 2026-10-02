@@ -19,7 +19,6 @@ const WhatIsStablecoins = lazy(() => import('../learn/pages/WhatIsStablecoins'))
 const WhatIsFrax = lazy(() => import('../learn/pages/WhatIsFrax'));
 const TheBusiness = lazy(() => import('../learn/pages/TheBusiness'));
 const HistoryDeepDive = lazy(() => import('../learn/pages/HistoryDeepDive'));
-const ExploreBetterMoney = lazy(() => import('../learn/pages/ExploreBetterMoney'));
 const NotFound = lazy(() => import('../learn/pages/NotFound'));
 
 /** Video / cinematic lessons keep their own atmosphere. */
@@ -29,6 +28,7 @@ const CINEMATIC_PATHS = new Set([
   '/learn/what-is-stablecoins',
   '/learn/what-is-frax',
   '/learn/explore-better-money',
+  '/learn/explore-better-money/desk',
   '/learn/history-deep-dive',
 ]);
 
@@ -89,7 +89,8 @@ export function LearnPage() {
           <Route path="the-business" element={<TheBusiness />} />
           <Route path="the-advanced" element={<Navigate to="/learn" replace />} />
           <Route path="history-deep-dive" element={<HistoryDeepDive />} />
-          <Route path="explore-better-money" element={<ExploreBetterMoney />} />
+          <Route path="explore-better-money/desk" element={<Navigate to="/frxUSD/supply" replace />} />
+          <Route path="explore-better-money" element={<Navigate to="/frxUSD" replace />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

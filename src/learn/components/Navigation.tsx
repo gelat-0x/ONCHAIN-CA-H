@@ -17,7 +17,7 @@ const navItems: Array<{
       { label: 'What is Blockchain?', path: '/learn/what-is-blockchain' },
       { label: 'What is a Stablecoin?', path: '/learn/what-is-stablecoins' },
       { label: 'What is Frax?', path: '/learn/what-is-frax' },
-      { label: 'Explore Better Money', path: '/learn/explore-better-money' },
+      { label: 'Explore Better Money', path: '/frxUSD' },
     ],
   },
   { label: 'The Business', path: '/learn/the-business' },

@@ -10,9 +10,10 @@ import type {
 } from '../../shared/types/index.ts';
 import { fetchJson } from '../lib/http.ts';
 import { fetchDefiLlamaStablecoins, findFrxUsdAsset } from './defillama.ts';
+import { buildFrxUsdSupplyMap } from './frxUsdSupplyPlaces.ts';
 import {
-  decodeTwoUint256,
   ethBlockNumber,
+  ethBlockTimestamps,
   ethGetLogsChunked,
   frxUsdFromShares,
   hexToBigInt,
@@ -21,21 +22,28 @@ import { fetchFrxUsdStablecoinId, fetchFrxUsdSupplyHistory } from './protocolCha
 
 const DOCS_URL = 'https://docs.frax.com/frxusd/mint-and-redeem-overview';
 
-/** ERC-4626 Deposit / Withdraw + ERC20 Transfer. */
-const TOPIC_DEPOSIT = '0xdcbc1c05240f31ff3ad067ef1ee2e6fad0b8ad9c646c26edae76b616f4fa53e7';
-const TOPIC_WITHDRAW = '0xfbde797d201c681b91056529119e0b92907fe15b832e1c4937793f5600a3d67';
 const TOPIC_TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const ZERO_TOPIC = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const ETHERSCAN_TX = 'https://etherscan.io/tx/';
+const ISSUANCE_CHAIN = 'Ethereum';
 
 const BLOCKS_PER_DAY = 7_200;
 const MS_PER_DAY = 86_400_000;
-const LOG_LOOKBACK_DAYS = 14;
+const LOG_LOOKBACK_DAYS = 7;
+const TOKEN_LOG_CHUNK = 4_000;
+const BLOCK_TS_CONCURRENCY = 6;
 
 let cache: { ts: number; data: FrxUsdMintRedeemData | null } | null = null;
-const CACHE_MS = 5 * 60 * 1000;
+const CACHE_MS = 12_000;
+let lastOnChain: { ts: number; events: FrxUsdMintRedeemEvent[] } | null = null;
+const LAST_ONCHAIN_MS = 30 * 60_000;
 
 function dayStart(ts: number): number {
   return Math.floor(ts / MS_PER_DAY) * MS_PER_DAY;
+}
+
+function roundCents(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 /** Derive daily mint/redeem from circulating-supply deltas (DefiLlama). */
@@ -59,6 +67,22 @@ function dailyFromSupply(points: ChartPoint[]): FrxUsdMintRedeemDay[] {
   return out;
 }
 
+function allTimeFromDaily(days: FrxUsdMintRedeemDay[]): {
+  mintAll: number;
+  redeemAll: number;
+  netAll: number;
+} {
+  let mintAll = 0;
+  let redeemAll = 0;
+  for (const d of days) {
+    mintAll += d.mint;
+    redeemAll += d.redeem;
+  }
+  mintAll = roundCents(mintAll);
+  redeemAll = roundCents(redeemAll);
+  return { mintAll, redeemAll, netAll: roundCents(mintAll - redeemAll) };
+}
+
 function chainSupplyFromDefiLlama(
   chainCirculating?: Record<string, { current?: { peggedUSD?: number } }>,
 ): FrxUsdChainSupply[] {
@@ -80,8 +104,18 @@ function chainSupplyFromDefiLlama(
 
 type RouteEvent = FrxUsdMintRedeemEvent;
 
-function blockToTs(block: number, latestBlock: number, now: number): number {
-  return now - (latestBlock - block) * 12_000;
+function explorerUrl(txHash: string): string {
+  return `${ETHERSCAN_TX}${txHash}`;
+}
+
+function withTxMeta(
+  event: Omit<RouteEvent, 'chain' | 'explorerUrl'>,
+): RouteEvent {
+  return {
+    ...event,
+    chain: ISSUANCE_CHAIN,
+    explorerUrl: explorerUrl(event.txHash),
+  };
 }
 
 function parseSupplyRows(
@@ -126,126 +160,90 @@ async function fetchSupplyHistoryDirect(assetId: string): Promise<ChartPoint[]> 
   return parseSupplyRows(res?.historicalCirculating ?? []);
 }
 
-async function fetchCustodianEvents(
-  fromBlock: number,
-  toBlock: number,
-  latestBlock: number,
-): Promise<{ events: RouteEvent[]; txRoutes: Map<string, { routeId: string; asset: string; type: 'mint' | 'redeem' }> }> {
-  const now = Date.now();
-  const events: RouteEvent[] = [];
-  const txRoutes = new Map<string, { routeId: string; asset: string; type: 'mint' | 'redeem' }>();
-
-  await Promise.all(
-    FRXUSD_MINT_ROUTES.map(async (route) => {
-      const addr = route.custodianAddress.toLowerCase();
-
-      const [deposits, withdraws] = await Promise.all([
-        ethGetLogsChunked({ address: addr, topics: [TOPIC_DEPOSIT] }, fromBlock, toBlock, 3_000),
-        ethGetLogsChunked({ address: addr, topics: [TOPIC_WITHDRAW] }, fromBlock, toBlock, 3_000),
-      ]);
-
-      for (const log of deposits) {
-        const { b: shares } = decodeTwoUint256(log.data);
-        const amount = frxUsdFromShares(shares);
-        if (amount <= 0) continue;
-        const block = Number.parseInt(log.blockNumber, 16);
-        const txHash = log.transactionHash.toLowerCase();
-        txRoutes.set(txHash, { routeId: route.id, asset: route.asset, type: 'mint' });
-        events.push({
-          id: `${txHash}-mint-${route.id}`,
-          ts: blockToTs(block, latestBlock, now),
-          type: 'mint',
-          routeId: route.id,
-          asset: route.asset,
-          amountUsd: amount,
-          txHash: log.transactionHash,
-        });
-      }
-
-      for (const log of withdraws) {
-        const { b: shares } = decodeTwoUint256(log.data);
-        const amount = frxUsdFromShares(shares);
-        if (amount <= 0) continue;
-        const block = Number.parseInt(log.blockNumber, 16);
-        const txHash = log.transactionHash.toLowerCase();
-        txRoutes.set(txHash, { routeId: route.id, asset: route.asset, type: 'redeem' });
-        events.push({
-          id: `${txHash}-redeem-${route.id}`,
-          ts: blockToTs(block, latestBlock, now),
-          type: 'redeem',
-          routeId: route.id,
-          asset: route.asset,
-          amountUsd: amount,
-          txHash: log.transactionHash,
-        });
-      }
-    }),
-  );
-
-  return { events: events.sort((a, b) => b.ts - a.ts), txRoutes };
-}
-
 /** frxUSD ERC20 mint (from zero) and burn (to zero) — protocol-wide issuance. */
 async function fetchTokenMintBurn(
   fromBlock: number,
   toBlock: number,
-  latestBlock: number,
   txRoutes: Map<string, { routeId: string; asset: string; type: 'mint' | 'redeem' }>,
 ): Promise<RouteEvent[]> {
-  const now = Date.now();
   const token = FRXUSD_TOKEN_ETHEREUM.toLowerCase();
   const [mints, burns] = await Promise.all([
     ethGetLogsChunked(
       { address: token, topics: [TOPIC_TRANSFER, ZERO_TOPIC] },
       fromBlock,
       toBlock,
-      3_000,
+      TOKEN_LOG_CHUNK,
     ),
     ethGetLogsChunked(
       { address: token, topics: [TOPIC_TRANSFER, null, ZERO_TOPIC] },
       fromBlock,
       toBlock,
-      3_000,
+      TOKEN_LOG_CHUNK,
     ),
   ]);
 
+  type Pending = {
+    log: (typeof mints)[number];
+    type: 'mint' | 'redeem';
+    amount: number;
+    block: number;
+    key: string;
+  };
+
+  const pending: Pending[] = [];
+  const seen = new Set<string>();
+
+  const classify = (log: (typeof mints)[number], kind: 'mint' | 'redeem') => {
+    const amount = frxUsdFromShares(hexToBigInt(log.data));
+    if (amount <= 0) return;
+    const topics = log.topics.map((t) => t.toLowerCase());
+    const fromZero = topics[1] === ZERO_TOPIC;
+    const toZero = topics[2] === ZERO_TOPIC;
+    // Classify by topics — some RPCs ignore null topics and return the same logs for both filters.
+    const type: 'mint' | 'redeem' = fromZero ? 'mint' : toZero ? 'redeem' : kind;
+    if (!fromZero && !toZero) return;
+    const txHash = log.transactionHash.toLowerCase();
+    const logIndex = log.logIndex ? Number.parseInt(log.logIndex, 16) : seen.size;
+    const key = `${txHash}-${logIndex}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const block = Number.parseInt(log.blockNumber, 16);
+    pending.push({ log, type, amount, block, key });
+  };
+
+  for (const log of mints) classify(log, 'mint');
+  for (const log of burns) classify(log, 'redeem');
+
+  const blockTs = await ethBlockTimestamps(
+    pending.map((p) => p.block),
+    BLOCK_TS_CONCURRENCY,
+  );
+
   const events: RouteEvent[] = [];
-
-  for (const log of mints) {
-    const amount = frxUsdFromShares(hexToBigInt(log.data));
-    if (amount <= 0) continue;
-    const block = Number.parseInt(log.blockNumber, 16);
-    const txHash = log.transactionHash.toLowerCase();
+  for (const p of pending) {
+    const ts = blockTs.get(p.block);
+    if (ts == null) continue;
+    const txHash = p.log.transactionHash.toLowerCase();
     const route = txRoutes.get(txHash);
-    events.push({
-      id: `${txHash}-tmint`,
-      ts: blockToTs(block, latestBlock, now),
-      type: 'mint',
-      routeId: route?.routeId ?? 'other',
-      asset: route?.asset ?? 'frxUSD',
-      amountUsd: amount,
-      txHash: log.transactionHash,
-    });
-  }
-
-  for (const log of burns) {
-    const amount = frxUsdFromShares(hexToBigInt(log.data));
-    if (amount <= 0) continue;
-    const block = Number.parseInt(log.blockNumber, 16);
-    const txHash = log.transactionHash.toLowerCase();
-    const route = txRoutes.get(txHash);
-    events.push({
-      id: `${txHash}-tburn`,
-      ts: blockToTs(block, latestBlock, now),
-      type: 'redeem',
-      routeId: route?.routeId ?? 'other',
-      asset: route?.asset ?? 'frxUSD',
-      amountUsd: amount,
-      txHash: log.transactionHash,
-    });
+    events.push(
+      withTxMeta({
+        id: p.key,
+        ts,
+        type: p.type,
+        routeId: route?.routeId ?? 'other',
+        asset: route?.asset ?? 'frxUSD',
+        amountUsd: p.amount,
+        txHash: p.log.transactionHash,
+      }),
+    );
   }
 
   return events.sort((a, b) => b.ts - a.ts);
+}
+
+function windowSum(events: RouteEvent[], type: 'mint' | 'redeem', since: number): number {
+  const sum = events.filter((e) => e.type === type && e.ts >= since).reduce((s, e) => s + e.amountUsd, 0);
+  return roundCents(sum);
 }
 
 function routeVolumes(events: RouteEvent[], now: number): FrxUsdRouteVolume[] {
@@ -253,26 +251,36 @@ function routeVolumes(events: RouteEvent[], now: number): FrxUsdRouteVolume[] {
   const since7d = now - 7 * MS_PER_DAY;
   const since30d = now - 30 * MS_PER_DAY;
 
-  return FRXUSD_MINT_ROUTES.map((route) => {
-    const routeEvents = events.filter((e) => e.routeId === route.id);
-    const mint = (since: number) =>
-      routeEvents.filter((e) => e.type === 'mint' && e.ts >= since).reduce((s, e) => s + e.amountUsd, 0);
-    const redeem = (since: number) =>
-      routeEvents.filter((e) => e.type === 'redeem' && e.ts >= since).reduce((s, e) => s + e.amountUsd, 0);
+  const tokenRow: FrxUsdRouteVolume = {
+    id: 'frxusd',
+    asset: 'frxUSD',
+    issuer: 'Frax',
+    custodianAddress: FRXUSD_TOKEN_ETHEREUM,
+    mint24h: windowSum(events, 'mint', since24h),
+    redeem24h: windowSum(events, 'redeem', since24h),
+    mint7d: windowSum(events, 'mint', since7d),
+    redeem7d: windowSum(events, 'redeem', since7d),
+    mint30d: windowSum(events, 'mint', since30d),
+    redeem30d: windowSum(events, 'redeem', since30d),
+  };
 
+  const tagged = FRXUSD_MINT_ROUTES.map((route) => {
+    const routeEvents = events.filter((e) => e.routeId === route.id);
     return {
       id: route.id,
       asset: route.asset,
       issuer: route.issuer,
       custodianAddress: route.custodianAddress,
-      mint24h: mint(since24h),
-      redeem24h: redeem(since24h),
-      mint7d: mint(since7d),
-      redeem7d: redeem(since7d),
-      mint30d: mint(since30d),
-      redeem30d: redeem(since30d),
+      mint24h: windowSum(routeEvents, 'mint', since24h),
+      redeem24h: windowSum(routeEvents, 'redeem', since24h),
+      mint7d: windowSum(routeEvents, 'mint', since7d),
+      redeem7d: windowSum(routeEvents, 'redeem', since7d),
+      mint30d: windowSum(routeEvents, 'mint', since30d),
+      redeem30d: windowSum(routeEvents, 'redeem', since30d),
     };
-  });
+  }).filter((row) => row.mint24h + row.redeem24h + row.mint7d + row.redeem7d > 0);
+
+  return [tokenRow, ...tagged];
 }
 
 export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemData | null> {
@@ -289,52 +297,38 @@ export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemD
   const circulating = Math.round(Number(frxAsset?.circulating?.peggedUSD) || 0);
   const chainSupply = chainSupplyFromDefiLlama(frxAsset?.chainCirculating);
 
-  const supplyPoints = frxId
-    ? await fetchSupplyHistoryDirect(frxId)
-    : await fetchFrxUsdSupplyHistory(frxId);
-  const daily = dailyFromSupply(supplyPoints).slice(-120);
+  const fromBlock = latestBlock ? Math.max(0, latestBlock - BLOCKS_PER_DAY * LOG_LOOKBACK_DAYS) : 0;
+  const [supplyPoints, tokenEvents] = await Promise.all([
+    frxId ? fetchSupplyHistoryDirect(frxId) : fetchFrxUsdSupplyHistory(frxId),
+    latestBlock
+      ? fetchTokenMintBurn(fromBlock, latestBlock, new Map()).catch((err) => {
+          console.warn('[frxUsdMintRedeem] token logs failed:', err);
+          return [] as RouteEvent[];
+        })
+      : Promise.resolve([] as RouteEvent[]),
+  ]);
+  const dailyFull = dailyFromSupply(supplyPoints);
+  const { mintAll, redeemAll, netAll } = allTimeFromDaily(dailyFull);
+  const daily = dailyFull.slice(-120);
 
-  let routeEvents: RouteEvent[] = [];
-  let tokenEvents: RouteEvent[] = [];
-  if (latestBlock) {
-    const fromBlock = Math.max(0, latestBlock - BLOCKS_PER_DAY * LOG_LOOKBACK_DAYS);
-    try {
-      const { events: custodianEvents, txRoutes } = await fetchCustodianEvents(
-        fromBlock,
-        latestBlock,
-        latestBlock,
-      );
-      routeEvents = custodianEvents;
-      tokenEvents = await fetchTokenMintBurn(fromBlock, latestBlock, latestBlock, txRoutes);
-    } catch (err) {
-      console.warn('[frxUsdMintRedeem] on-chain fetch failed:', err);
-    }
+  let activityEvents = tokenEvents;
+  if (activityEvents.length) {
+    lastOnChain = { ts: Date.now(), events: activityEvents };
+  } else if (lastOnChain && Date.now() - lastOnChain.ts < LAST_ONCHAIN_MS) {
+    activityEvents = lastOnChain.events;
   }
 
-  const hasCustodianSignal = routeEvents.length > 0;
-  const activityEvents = hasCustodianSignal ? routeEvents : tokenEvents;
-  const routes = routeVolumes(hasCustodianSignal ? routeEvents : tokenEvents, now);
+  const hasTokenSignal = activityEvents.length > 0;
+  const routes = routeVolumes(activityEvents, now);
+  const mint24h = windowSum(activityEvents, 'mint', now - MS_PER_DAY);
+  const redeem24h = windowSum(activityEvents, 'redeem', now - MS_PER_DAY);
+  const mint7d = windowSum(activityEvents, 'mint', now - 7 * MS_PER_DAY);
+  const redeem7d = windowSum(activityEvents, 'redeem', now - 7 * MS_PER_DAY);
+  const recentEvents = [...new Map(activityEvents.map((e) => [e.id, e])).values()]
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, 80);
 
-  let mint24h = activityEvents.filter((e) => e.type === 'mint' && e.ts >= now - MS_PER_DAY).reduce((s, e) => s + e.amountUsd, 0);
-  let redeem24h = activityEvents.filter((e) => e.type === 'redeem' && e.ts >= now - MS_PER_DAY).reduce((s, e) => s + e.amountUsd, 0);
-  let mint7d = activityEvents.filter((e) => e.type === 'mint' && e.ts >= now - 7 * MS_PER_DAY).reduce((s, e) => s + e.amountUsd, 0);
-  let redeem7d = activityEvents.filter((e) => e.type === 'redeem' && e.ts >= now - 7 * MS_PER_DAY).reduce((s, e) => s + e.amountUsd, 0);
-
-  const hasOnChainSignal = activityEvents.length > 0;
-
-  if (!hasOnChainSignal && daily.length) {
-    const last = daily.at(-1);
-    if (last) {
-      mint24h = last.mint;
-      redeem24h = last.redeem;
-    }
-    mint7d = daily.slice(-7).reduce((s, d) => s + d.mint, 0);
-    redeem7d = daily.slice(-7).reduce((s, d) => s + d.redeem, 0);
-  }
-
-  const recentEvents = activityEvents.slice(0, 20);
-
-  if (!circulating && !daily.length && !hasOnChainSignal) {
+  if (!circulating && !daily.length && !hasTokenSignal) {
     cache = { ts: Date.now(), data: null };
     return null;
   }
@@ -343,19 +337,24 @@ export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemD
     circulating,
     mint24h,
     redeem24h,
-    net24h: mint24h - redeem24h,
+    net24h: roundCents(mint24h - redeem24h),
     mint7d,
     redeem7d,
-    net7d: mint7d - redeem7d,
+    net7d: roundCents(mint7d - redeem7d),
+    mintAll,
+    redeemAll,
+    netAll,
     routes,
     chainSupply,
+    supplyMap: await buildFrxUsdSupplyMap(chainSupply).catch((error) => {
+      console.warn('[frxUsdMintRedeem] supply map failed:', error);
+      return undefined;
+    }),
     daily,
     recentEvents,
-    source: hasCustodianSignal
-      ? 'Ethereum custodian contracts + DefiLlama stablecoins'
-      : hasOnChainSignal
-        ? 'frxUSD token mint/burn logs + DefiLlama stablecoins'
-        : 'DefiLlama stablecoins (supply deltas)',
+    source: hasTokenSignal
+      ? 'frxUSD ERC-20 mint/burn logs on Ethereum + DefiLlama chain supply'
+      : 'DefiLlama stablecoins (circulation only — prints still warming)',
     docsUrl: DOCS_URL,
   };
 

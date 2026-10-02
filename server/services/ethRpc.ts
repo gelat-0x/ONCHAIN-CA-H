@@ -1,6 +1,10 @@
 const DEFAULT_ETH_RPC = 'https://ethereum.publicnode.com';
 
-export async function ethRpc<T>(method: string, params: unknown[], rpcUrl = DEFAULT_ETH_RPC): Promise<T | null> {
+export function ethRpcUrl(): string {
+  return process.env.ETH_RPC_URL || process.env.ETH_RPC || DEFAULT_ETH_RPC;
+}
+
+export async function ethRpc<T>(method: string, params: unknown[], rpcUrl = ethRpcUrl()): Promise<T | null> {
   try {
     const res = await fetch(rpcUrl, {
       method: 'POST',
@@ -33,6 +37,7 @@ type EthLog = {
   data: string;
   blockNumber: string;
   transactionHash: string;
+  logIndex?: string;
   timeStamp?: string;
 };
 
@@ -57,12 +62,20 @@ export async function ethGetLogsChunked(
   toBlock: number,
   chunkSize = 4_000,
   rpcUrl?: string,
+  concurrency = 3,
 ): Promise<EthLog[]> {
-  const out: EthLog[] = [];
+  const ranges: { fromBlock: number; toBlock: number }[] = [];
   for (let start = fromBlock; start <= toBlock; start += chunkSize + 1) {
-    const end = Math.min(start + chunkSize, toBlock);
-    const batch = await ethGetLogs({ ...filter, fromBlock: start, toBlock: end }, rpcUrl);
-    out.push(...batch);
+    ranges.push({ fromBlock: start, toBlock: Math.min(start + chunkSize, toBlock) });
+  }
+
+  const out: EthLog[] = [];
+  for (let i = 0; i < ranges.length; i += concurrency) {
+    const slice = ranges.slice(i, i + concurrency);
+    const batches = await Promise.all(
+      slice.map((range) => ethGetLogs({ ...filter, ...range }, rpcUrl)),
+    );
+    for (const batch of batches) out.push(...batch);
   }
   return out;
 }
@@ -83,5 +96,40 @@ export function decodeTwoUint256(data: string): { a: bigint; b: bigint } {
 }
 
 export function frxUsdFromShares(shares: bigint): number {
-  return Math.round(Number(shares) / 1e18);
+  const decimals = 10n ** 18n;
+  const cents = (shares * 100n + decimals / 2n) / decimals;
+  return Number(cents) / 100;
+}
+
+const blockTsCache = new Map<number, number>();
+
+export async function ethBlockTimestamp(block: number, rpcUrl?: string): Promise<number | null> {
+  const cached = blockTsCache.get(block);
+  if (cached) return cached;
+  const raw = await ethRpc<{ timestamp?: string }>('eth_getBlockByNumber', [`0x${block.toString(16)}`, false], rpcUrl);
+  const ts = raw?.timestamp ? Number.parseInt(raw.timestamp, 16) * 1000 : null;
+  if (ts && Number.isFinite(ts)) {
+    blockTsCache.set(block, ts);
+    return ts;
+  }
+  return null;
+}
+
+/** Resolve block timestamps with bounded concurrency (uses ethBlockTimestamp cache). */
+export async function ethBlockTimestamps(
+  blocks: number[],
+  concurrency = 6,
+  rpcUrl?: string,
+): Promise<Map<number, number>> {
+  const unique = [...new Set(blocks)].filter((b) => Number.isFinite(b) && b >= 0);
+  const out = new Map<number, number>();
+  for (let i = 0; i < unique.length; i += concurrency) {
+    const slice = unique.slice(i, i + concurrency);
+    const results = await Promise.all(slice.map((block) => ethBlockTimestamp(block, rpcUrl)));
+    for (let j = 0; j < slice.length; j++) {
+      const ts = results[j];
+      if (ts != null) out.set(slice[j]!, ts);
+    }
+  }
+  return out;
 }

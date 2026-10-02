@@ -39,7 +39,7 @@ const DIRECTORY: DirectoryItem[] = [
       { label: 'What is Blockchain?', to: '/learn/what-is-blockchain' },
       { label: 'What is a Stablecoin?', to: '/learn/what-is-stablecoins' },
       { label: 'What is Frax?', to: '/learn/what-is-frax' },
-      { label: 'Explore Better Money', to: '/learn/explore-better-money' },
+      { label: 'Explore Better Money', to: '/frxUSD' },
       { label: 'The Business', to: '/learn/the-business' },
     ],
   },
