@@ -502,6 +502,7 @@ const ExploreFrxUsdOpportunities = ({ embedded = false }: { embedded?: boolean }
 };
 
 const ChainPlaces = ({ rows, onClose }: { rows: FrxUsdOppRow[]; onClose: () => void }) => {
+  const [picked, setPicked] = useState<string | null>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -537,29 +538,43 @@ const ChainPlaces = ({ rows, onClose }: { rows: FrxUsdOppRow[]; onClose: () => v
             <h3>By chain</h3>
           </div>
         </header>
-        <div className="fxo-bychain">
-          {chains.map(([chain, list]) => (
-            <section key={chain}>
-              <h4>
+        <div className="fxo-chain-tiles" role="list">
+          {chains.map(([chain, list]) => {
+            const on = picked === chain;
+            return (
+              <button
+                key={chain}
+                type="button"
+                role="listitem"
+                className={`fxo-chain-tile${on ? ' is-on' : ''}`}
+                aria-pressed={on}
+                onClick={() => setPicked(on ? null : chain)}
+              >
                 <ChainChip name={chain} />
-              </h4>
-              <ul>
-                {list.map((row) => (
-                  <li key={`${chain}-${row.id}`}>
-                    <Logo id={row.venue} />
-                    <span>
-                      <b>{row.name}</b>
-                      <small>{DOORS.find((door) => door.id === row.door)?.title ?? row.group}</small>
-                    </span>
-                    <strong className={row.apy > 0 ? 'is-rate' : 'is-rate is-soft'}>
-                      {row.apy > 0 ? fmtApy(row.apy) : 'See rate'}
-                    </strong>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+                <small>{list.length}</small>
+              </button>
+            );
+          })}
         </div>
+        {picked && groups.get(picked) ? (
+          <ul className="fxo-bychain fxo-bychain--one">
+            {groups.get(picked)!.map((row) => (
+              <li key={`${picked}-${row.id}`}>
+                <Logo id={row.venue} />
+                <span>
+                  <b>{row.name}</b>
+                  <small>{DOORS.find((door) => door.id === row.door)?.title ?? row.group}</small>
+                </span>
+                <a href={row.href} target="_blank" rel="noopener noreferrer">
+                  {row.apy > 0 ? fmtApy(row.apy) : 'Open'}
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="fxo-chain-tiles__hint">Pick a chain.</p>
+        )}
       </div>
     </div>,
     document.body,

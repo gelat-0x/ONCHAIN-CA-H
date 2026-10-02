@@ -373,6 +373,8 @@ export interface FrxUsdSupplyPlace {
   kind?: 'pegkeeper';
   /** Use-case slice. Held is the residual on a chain. */
   use?: FrxUsdSupplyUse;
+  /** Venue page for this place. */
+  href?: string;
 }
 
 export interface FrxUsdSupplyChainBlock {

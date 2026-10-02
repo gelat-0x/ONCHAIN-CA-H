@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from '../../shared/constants/apiEndpoints.ts';
 import { FRXUSD_TOKEN_ETHEREUM } from '../../shared/data/frxUsdMintRoutes.ts';
 import { POOL_REGISTRY } from '../../shared/data/poolRegistry.ts';
+import { resolveCurveDeposit } from './curvePoolIndex.ts';
 import type {
   DefiLlamaYieldPool,
   FrxUsdAdoption,
@@ -20,6 +21,8 @@ const PLACES_TTL_MS = 120_000;
 const MIN_PLACE_USD = 15_000;
 const MIN_CHAIN_TILE = 100_000;
 const HOME_CHAINS = new Set(['ethereum', 'fraxtal']);
+const SONIC_FRXUSD = '0x80Eede496655FB9047dd39d9f418d5483ED600df';
+const SONIC_MIN_USD = 100;
 
 const PEG_SYMBOLS = new Set(
   POOL_REGISTRY.filter((entry) => entry.venue !== 'fables').map((entry) =>
@@ -421,13 +424,79 @@ function fillChain(
       id: `wallets-${key}`,
       chain: row.chain,
       category: 'wallets',
-      name: 'Held on this chain',
+      name: 'Held in wallets',
       usd: places.length === 0 ? row.circulating : wallets,
       logo: 'wallet',
       use: 'held',
     });
   }
   return { chain: row.chain, circulating: row.circulating, sharePct, places };
+}
+
+const VENUE_HREF: Record<string, string> = {
+  aave: 'https://pro.aave.com/explore/token/FRXUSD?chain=1',
+  fraxlend: 'https://frax.com/lend',
+  morpho: 'https://app.morpho.org/ethereum/earn',
+  euler: 'https://app.euler.finance/',
+  fluid: 'https://fluid.io/',
+  uniswap: 'https://app.uniswap.org/explore',
+  aerodrome: 'https://aerodrome.finance/liquidity',
+  fraxswap: 'https://frax.com/swap',
+  giga: 'https://www.gigadex.fi',
+  fables: 'https://www.fables.fi',
+};
+
+async function stampHref(place: FrxUsdSupplyPlace): Promise<FrxUsdSupplyPlace> {
+  if (place.href) return place;
+  if (place.logo === 'curve') return { ...place, href: await resolveCurveDeposit(place.chain, place.name) };
+  const href = VENUE_HREF[place.logo];
+  return href ? { ...place, href } : place;
+}
+
+interface DexPair {
+  dexId?: string;
+  pairAddress?: string;
+  url?: string;
+  baseToken?: { symbol?: string; address?: string };
+  quoteToken?: { symbol?: string; address?: string };
+  liquidity?: { base?: number; quote?: number };
+}
+
+async function fetchSonicDexPlaces(): Promise<FrxUsdSupplyPlace[]> {
+  const res = await fetch(`https://api.dexscreener.com/token-pairs/v1/sonic/${SONIC_FRXUSD}`, {
+    signal: AbortSignal.timeout(12_000),
+    headers: { accept: 'application/json' },
+  });
+  if (!res.ok) return [];
+  const pairs = (await res.json()) as DexPair[];
+  if (!Array.isArray(pairs)) return [];
+  const want = SONIC_FRXUSD.toLowerCase();
+  const places: FrxUsdSupplyPlace[] = [];
+  for (const pair of pairs) {
+    const base = pair.baseToken?.address?.toLowerCase();
+    const quote = pair.quoteToken?.address?.toLowerCase();
+    const baseIs = base === want;
+    const quoteIs = quote === want;
+    if (!baseIs && !quoteIs) continue;
+    const frx = baseIs ? Number(pair.liquidity?.base) : Number(pair.liquidity?.quote);
+    if (!Number.isFinite(frx) || frx < SONIC_MIN_USD) continue;
+    const other = (baseIs ? pair.quoteToken?.symbol : pair.baseToken?.symbol) || 'token';
+    const dexId = (pair.dexId ?? '').toLowerCase();
+    const dex = dexId === 'shadow-exchange' ? 'Shadow' : dexId === 'swapx' ? 'SwapX' : dexId || 'DEX';
+    const logo = dexId === 'shadow-exchange' ? 'shadow' : dexId === 'swapx' ? 'swapx' : dexId || 'dex';
+    const address = pair.pairAddress ?? '';
+    places.push({
+      id: `sonic-${address || places.length}`,
+      chain: 'Sonic',
+      category: 'pairs',
+      name: `${dex} · frxUSD / ${other}`,
+      usd: Math.round(frx),
+      logo,
+      use: 'lp',
+      href: pair.url || (address ? `https://dexscreener.com/sonic/${address}` : 'https://dexscreener.com/sonic'),
+    });
+  }
+  return places;
 }
 
 export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Promise<FrxUsdSupplyMap> {
@@ -451,6 +520,7 @@ export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Pr
         name: `Fables · ${pool.otherSymbol} / frxUSD`,
         usd: Math.round(pool.frxUsdUsd),
         logo: 'fables',
+        href: pool.href,
         ...(pool.stable ? { kind: 'pegkeeper' as const, use: 'pegkeeper' as const } : { use: 'lp' as const }),
       })),
     ];
@@ -470,10 +540,18 @@ export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Pr
         usd: pool.frxUsdUsd,
         logo: 'giga',
         use: 'rwa' as const,
+        href: 'https://www.gigadex.fi',
       })),
     ];
   } catch (error) {
     console.warn('[frxUsdSupplyPlaces] Giga pools failed:', error);
+  }
+
+  try {
+    const sonic = await fetchSonicDexPlaces();
+    raw = [...raw, ...sonic];
+  } catch (error) {
+    console.warn('[frxUsdSupplyPlaces] Sonic DEX pools failed:', error);
   }
 
   const robinhoodPlaces = raw.filter((place) => isRobinhood(place.chain));
@@ -530,5 +608,8 @@ export async function buildFrxUsdSupplyMap(chainSupply: FrxUsdChainSupply[]): Pr
   }
 
   chains.sort((a, b) => b.circulating - a.circulating);
+  for (const block of chains) {
+    block.places = await Promise.all(block.places.map((place) => stampHref(place)));
+  }
   return { chains, adoption: buildAdoption(ranked, raw) };
 }

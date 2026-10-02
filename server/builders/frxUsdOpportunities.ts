@@ -1,4 +1,6 @@
 import { API_ENDPOINTS } from '../../shared/constants/apiEndpoints.ts';
+import { curveDepositUrl } from '../../shared/data/poolRegistry.ts';
+import { resolveCurveDeposit } from '../services/curvePoolIndex.ts';
 import {
   FRXUSD_PLACES,
   fallbackOpportunityLive,
@@ -343,7 +345,7 @@ function classifyMarkets(pools: DefiLlamaYieldPool[]): FrxUsdOppRow[] {
         name: `${other} / frxUSD`,
         happens: `People trade ${other} and frxUSD. Both are meant to stay near one dollar, and you earn the swap fees.`,
         youDo: `Add ${other} and frxUSD on Curve (${chain}).`,
-        href: 'https://www.curve.finance',
+        href: curveDepositUrl(chain, `${other} / frxUSD`),
       }),
     );
   }
@@ -401,7 +403,7 @@ function classifyMarkets(pools: DefiLlamaYieldPool[]): FrxUsdOppRow[] {
         name: `${other} / frxUSD`,
         happens: `People trade ${other} against frxUSD. You earn the swap fees on that currency pair.`,
         youDo: `Add ${other} and frxUSD on ${curve ? 'Curve' : 'Aerodrome'} (${chain}).`,
-        href: curve ? 'https://www.curve.finance' : 'https://aerodrome.finance',
+        href: curve ? curveDepositUrl(chain, `${other} / frxUSD`) : 'https://aerodrome.finance/liquidity',
       }),
     );
   }
@@ -431,7 +433,7 @@ function classifyMarkets(pools: DefiLlamaYieldPool[]): FrxUsdOppRow[] {
           ? `${other} is a Frax bond, not a foreign currency. Traders swap it against frxUSD and you earn the fees.`
           : `Traders swap ${other} against frxUSD on Curve. This is not a dollar PegKeeper and not an FX pair.`,
         youDo: `Add ${other} and frxUSD on Curve (${pool.chain ?? 'Fraxtal'}).`,
-        href: 'https://www.curve.finance',
+        href: curveDepositUrl(pool.chain ?? 'Fraxtal', `${other} / frxUSD`),
       }),
     );
   }
@@ -768,6 +770,14 @@ export async function buildFrxUsdOpportunities(): Promise<FrxUsdOppLive> {
       .filter((p) => p.apy > 0);
 
     const stakePools = hubPools.length ? hubPools : llamaStake;
+
+    await Promise.all(
+      rows
+        .filter((row) => row.venue === 'curve')
+        .map(async (row) => {
+          row.href = await resolveCurveDeposit(row.chain, row.name);
+        }),
+    );
 
     const shown = rows.filter((row) => row.apy > 0);
     const data: FrxUsdOppLive = {

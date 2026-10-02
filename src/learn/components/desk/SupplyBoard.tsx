@@ -39,10 +39,7 @@ function formatShare(share: number): string {
 }
 
 function placeLogo(place: FrxUsdSupplyPlace, chain: string): string | undefined {
-  if (place.logo === 'wallet') {
-    const named = place.name === 'In wallets' ? chain : place.name;
-    return chainLogoSrc(named);
-  }
+  if (place.logo === 'wallet') return chainLogoSrc(place.chain || chain);
   return protocolLogo(place.logo);
 }
 
@@ -51,40 +48,58 @@ function onThisChain(row: FrxUsdOppRow, chain: string): boolean {
   return [row.chain, ...(row.chains ?? [])].some((name) => chainKey(name) === target);
 }
 
+const DOOR_LABEL: Record<string, string> = {
+  hold: 'Hold on FraxNet',
+  vault: 'Vaults',
+  lend: 'Lending',
+  borrow: 'Borrow',
+  fx: 'LP',
+  peg: 'PegKeeper LP',
+  rwa: 'Tokenized',
+  loop: 'Loop',
+  boost: 'Boost',
+};
+
+const DOOR_ORDER = ['vault', 'lend', 'borrow', 'fx', 'peg', 'rwa', 'loop', 'boost', 'hold'];
+
 const VENUE_GROUPS: Array<{
   id: string;
   label: string;
-  hint: string;
   test: (place: FrxUsdSupplyPlace) => boolean;
 }> = [
   {
+    id: 'vaults',
+    label: 'Vaults',
+    test: (place) => place.use === 'frax' && place.category !== 'lending' && place.category !== 'wallets',
+  },
+  {
     id: 'lending',
     label: 'Lending',
-    hint: 'Deposited into a lending market. Borrowed dollars have already left.',
     test: (place) => place.category === 'lending',
   },
   {
     id: 'peg',
-    label: 'PegKeepers',
-    hint: 'frxUSD paired with another dollar so the price stays near $1.',
-    test: (place) => place.kind === 'pegkeeper',
+    label: 'PegKeeper LP',
+    test: (place) => place.kind === 'pegkeeper' || place.use === 'pegkeeper',
   },
   {
-    id: 'dex',
-    label: 'DEXes',
-    hint: 'Trading pools on this chain, including FX markets.',
-    test: (place) => place.category === 'pairs' && place.kind !== 'pegkeeper' && place.use !== 'rwa',
+    id: 'lp',
+    label: 'LP',
+    test: (place) => place.category === 'pairs' && place.kind !== 'pegkeeper' && place.use !== 'pegkeeper' && place.use !== 'fx' && place.use !== 'rwa',
+  },
+  {
+    id: 'fx',
+    label: 'FX',
+    test: (place) => place.use === 'fx',
   },
   {
     id: 'rwa',
-    label: 'Tokenized assets',
-    hint: 'frxUSD paired with a tokenized bond, stock, or Frax bond.',
+    label: 'Tokenized',
     test: (place) => place.use === 'rwa',
   },
   {
     id: 'wallets',
-    label: 'Held',
-    hint: 'frxUSD on this chain that is not in a venue above.',
+    label: 'Held in wallets',
     test: (place) => place.category === 'wallets',
   },
 ];
@@ -99,6 +114,7 @@ function ChainSheet({
   onClose: () => void;
 }) {
   const share = block.sharePct;
+  const [openBox, setOpenBox] = useState<string | null>(null);
   const groups = VENUE_GROUPS.map((group) => ({
     ...group,
     rows: block.places.filter(group.test).sort((a, b) => b.usd - a.usd),
@@ -123,14 +139,21 @@ function ChainSheet({
   }, [onClose]);
 
   const onlyHeld = block.places.every((place) => place.category === 'wallets');
-  const robinhood = block.chain.toLowerCase().includes('robinhood');
-  const note = robinhood
+  const hasDex = block.places.some((place) => place.category === 'pairs');
+  const key = block.chain.toLowerCase();
+  const note = key.includes('robinhood')
     ? 'Frax does not mint on Robinhood Chain. These dollars are in Fables and GigaDEX, counted from those venues.'
-    : block.chain === 'Other chains'
+    : key === 'other chains'
       ? 'Smaller chains, each with its own frxUSD balance.'
-      : onlyHeld
-        ? 'No indexed DEX or lending market for frxUSD on this chain. This is the balance reported for the chain.'
-        : null;
+      : key === 'somnia'
+        ? 'Somnia also runs USDso, a white-label dollar backed 1:1 by frxUSD in a Frax vault. No indexed frxUSD DEX on this chain.'
+        : key === 'sonic'
+          ? hasDex
+            ? 'Sonic also runs USSD, a white-label dollar on Frax infrastructure. The LP rows are the frxUSD pools DexScreener lists here.'
+            : 'Sonic also runs USSD, a white-label dollar on Frax infrastructure. DexScreener is not listing a frxUSD pool on this chain right now.'
+          : onlyHeld
+            ? 'No indexed DEX or lending market for frxUSD on this chain. This is the balance reported for the chain.'
+            : null;
 
   return createPortal(
     <div className="chain-sheet" onClick={onClose}>
@@ -165,66 +188,106 @@ function ChainSheet({
         </div>
         {note ? <p className="chain-sheet__note">{note}</p> : null}
 
-        {groups.map((group) => (
-          <section key={group.id} className="chain-sheet__group">
-            <h4>{group.label}</h4>
-            <p>{group.hint}</p>
-            <ul>
-              {group.rows.map((place) => {
-                const src = placeLogo(place, block.chain);
-                const width = Math.min(100, (place.usd / scale) * 100);
-                return (
-                  <li key={place.id}>
-                    {src ? (
-                      <img
-                        src={src}
-                        alt=""
-                        className={/fraxlend|usdb/i.test(src) ? 'is-plate' : undefined}
-                      />
-                    ) : (
-                      <i aria-hidden="true" />
-                    )}
-                    <span>
-                      <strong>{place.name}</strong>
-                      {place.borrowedUsd ? (
-                        <em>{formatUsdMetric(place.borrowedUsd)} borrowed out</em>
-                      ) : null}
-                      <span className="chain-sheet__meter" aria-hidden="true">
-                        <i style={{ width: `${Math.max(width, width > 0 ? 4 : 0)}%` }} />
-                      </span>
-                    </span>
-                    <b className="tabular-nums">{formatUsdMetric(place.usd)}</b>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+        <div className="chain-boxes">
+        {groups.map((group) => {
+          const total = group.rows.reduce((sum, place) => {
+            const sitting = place.borrowedUsd ? Math.max(0, place.usd - place.borrowedUsd) : place.usd;
+            return sum + sitting;
+          }, 0);
+          const open = openBox === group.id;
+          return (
+            <section key={group.id} className={`chain-box${open ? ' is-open' : ''}${group.id === 'wallets' ? ' is-wallets' : ''}`}>
+              <button
+                type="button"
+                className="chain-box__toggle"
+                aria-expanded={open}
+                onClick={() => setOpenBox(open ? null : group.id)}
+              >
+                <strong>
+                  {group.id === 'wallets' ? <span className="chain-box__pulse" aria-hidden="true" /> : null}
+                  {group.label}
+                </strong>
+                <em>{group.rows.length}</em>
+                <b className="tabular-nums">{formatUsdMetric(total)}</b>
+              </button>
+              {open ? (
+                <ul>
+                  {group.rows.map((place) => {
+                    const src = placeLogo(place, block.chain);
+                    const width = Math.min(100, (place.usd / scale) * 100);
+                    const amount = formatUsdMetric(place.usd);
+                    return (
+                      <li key={place.id} className={group.id === 'wallets' ? 'is-wallet' : undefined}>
+                        {src ? (
+                          <img
+                            src={src}
+                            alt=""
+                            className={/fraxlend|usdb/i.test(src) ? 'is-plate' : undefined}
+                          />
+                        ) : (
+                          <i aria-hidden="true" />
+                        )}
+                        <span>
+                          <strong>{place.name}</strong>
+                          {place.borrowedUsd ? (
+                            <em>{formatUsdMetric(place.borrowedUsd)} borrowed out</em>
+                          ) : null}
+                          <span className="chain-sheet__meter" aria-hidden="true">
+                            <i style={{ width: `${Math.max(width, width > 0 ? 4 : 0)}%` }} />
+                          </span>
+                        </span>
+                        {place.href ? (
+                          <a href={place.href} target="_blank" rel="noopener noreferrer">
+                            {amount}
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </a>
+                        ) : (
+                          <b className="tabular-nums">{amount}</b>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </section>
+          );
+        })}
 
         {uses.length ? (
-          <section className="chain-sheet__group">
-            <h4>Ways to use it</h4>
-            <p>Vaults and lending markets on this chain. Rates come from the venue.</p>
-            <ul>
-              {uses.map((row) => {
-                const src = protocolLogo(row.venue);
-                return (
-                  <li key={row.id}>
-                    {src ? <img src={src} alt="" /> : <i aria-hidden="true" />}
-                    <span>
-                      <strong>{row.name}</strong>
-                      <em>{row.door === 'vault' ? 'Vault' : row.door === 'lend' ? 'Lending' : 'Loop'}</em>
-                    </span>
-                    <a href={row.href} target="_blank" rel="noopener noreferrer">
-                      {row.apy > 0 ? `${row.apy.toFixed(1)}%` : 'On venue'}
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
+          <section className={`chain-box${openBox === 'use' ? ' is-open' : ''}`}>
+            <button
+              type="button"
+              className="chain-box__toggle"
+              aria-expanded={openBox === 'use'}
+              onClick={() => setOpenBox(openBox === 'use' ? null : 'use')}
+            >
+              <strong>On this chain</strong>
+              <em>{uses.length}</em>
+              <b>Use</b>
+            </button>
+            {openBox === 'use' ? (
+              <ul>
+                {uses.map((row) => {
+                  const src = protocolLogo(row.venue);
+                  return (
+                    <li key={row.id}>
+                      {src ? <img src={src} alt="" /> : <i aria-hidden="true" />}
+                      <span>
+                        <strong>{row.name}</strong>
+                        <em>{DOOR_LABEL[row.door ?? ''] ?? row.group}</em>
+                      </span>
+                      <a href={row.href} target="_blank" rel="noopener noreferrer">
+                        {row.apy > 0 ? `${row.apy.toFixed(1)}%` : 'Open'}
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
           </section>
         ) : null}
+        </div>
       </div>
     </div>,
     document.body,
@@ -266,7 +329,7 @@ export function SupplyBoard({
             id: `wallets-${row.chain}`,
             chain: row.chain,
             category: 'wallets' as const,
-            name: 'Held on this chain',
+            name: 'Held in wallets',
             usd: row.circulating,
             logo: 'wallet',
           },
@@ -277,8 +340,12 @@ export function SupplyBoard({
   const open = blocks.find((block) => block.chain === picked) ?? null;
   const openUses = open
     ? uses
-        .filter((row) => (row.door === 'vault' || row.door === 'lend' || row.door === 'loop') && onThisChain(row, open.chain))
-        .sort((a, b) => (b.apy || 0) - (a.apy || 0))
+        .filter((row) => row.door && onThisChain(row, open.chain))
+        .sort((a, b) => {
+          const order = DOOR_ORDER.indexOf(a.door ?? '') - DOOR_ORDER.indexOf(b.door ?? '');
+          if (order !== 0) return order;
+          return (b.apy || 0) - (a.apy || 0);
+        })
     : [];
 
   if (!blocks.length) return null;

@@ -366,6 +366,12 @@ export function DeskMap({
         aria-label="Mint floor"
       >
         <img src="/learn/images/assets/frxusd.png" alt="frxUSD" />
+        {(() => {
+          const collateral = events.find((event) => event.asset && event.asset !== 'frxUSD');
+          const src = collateral ? assetLogoSrc(collateral.asset) : undefined;
+          if (!src) return null;
+          return <img className="desk-map__factory-asset" src={src} alt={collateral?.asset ?? ''} />;
+        })()}
       </button>
 
       {nodes.map((n) => (

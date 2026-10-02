@@ -44,6 +44,7 @@ export function DeskFeed({
               <span className="desk-feed__amt tabular-nums">{formatPrintUsd(event.amountUsd)}</span>
               <span className="desk-feed__asset">
                 <img src={assetLogoSrc(event.asset) ?? '/learn/images/assets/frxusd.png'} alt="" />
+                {event.asset !== 'frxUSD' ? <em>{event.asset}</em> : null}
                 <img src={chainLogoSrc(event.chain ?? 'Ethereum')} alt="" />
               </span>
               <span className="desk-feed__time">{ago(event.ts)}</span>

@@ -282,11 +282,18 @@ const Hero = () => {
   const live = useFrxUsdLive();
   const { apr: liveApr } = useHeroApr();
 
-  const circulationM = (live.circulation || 138_900_000) / 1_000_000;
+  const circulationM = live.circulation > 0 ? Math.round(live.circulation / 1_000_000) : null;
 
-  const metrics = [
-    { label: "ALWAYS WORTH", prefix: "$", target: 1, decimals: 2, suffix: "", sub: "Stable, anytime", live: false },
-    { label: "In use", prefix: "≈ $", target: Math.round(circulationM), decimals: 0, suffix: "M", sub: "Dollars in circulation", live: true },
+  const metrics: Array<{
+    label: string;
+    prefix: string;
+    target: number | null;
+    decimals: number;
+    suffix: string;
+    sub: string;
+  }> = [
+    { label: "ALWAYS WORTH", prefix: "$", target: 1, decimals: 2, suffix: "", sub: "Stable, anytime" },
+    { label: "In use", prefix: "≈ $", target: circulationM, decimals: 0, suffix: "M", sub: "Dollars in circulation" },
     {
       label: "Your money can grow",
       prefix: "~",
@@ -294,7 +301,6 @@ const Hero = () => {
       decimals: 2,
       suffix: "%",
       sub: "yearly",
-      live: true,
     },
   ];
 
@@ -303,19 +309,18 @@ const Hero = () => {
       className="explore-hero flex items-center justify-center px-5 md:px-6 pt-12 pb-6 md:pt-8 md:pb-8 relative overflow-hidden"
     >
       <FloatingParticles />
-      <div className="absolute inset-0 pointer-events-none">
-        <LazyImg
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <img
           src="/learn/images/usd-coins-bg.png"
           alt=""
           width={1920}
           height={1080}
-          loading="eager"
+          decoding="async"
           fetchPriority="high"
-          className="w-full h-full object-cover opacity-[0.28] blur-[2px]"
-          style={{ opacity: 0.28 }}
+          className="explore-hero__bg"
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-[hsl(0,0%,4%)]/40 via-[hsl(0,0%,4%)]/20 to-[hsl(0,0%,4%)]/70 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0a0a0c]/80 pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[hsl(0,0%,95%)]/[0.05] blur-[180px] rounded-full pointer-events-none" />
 
       <motion.div className="relative z-10 text-center max-w-4xl mx-auto space-y-4">
@@ -353,14 +358,18 @@ const Hero = () => {
               transition={{ delay: 0.9 + i * 0.08 }}
               className={`${cardBase} p-3 sm:p-4 text-center backdrop-blur-sm`}>
               <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[hsl(0,0%,55%)]/80 mb-1.5">{m.label}</p>
-              <AnimatedCounter
-                key={`m-${i}-${m.target}`}
-                target={m.target}
-                prefix={m.prefix}
-                suffix={m.suffix}
-                decimals={m.decimals}
-                className="text-lg sm:text-2xl font-bold text-[hsl(0,0%,95%)]"
-              />
+              {m.target == null ? (
+                <span className="text-lg sm:text-2xl font-bold text-[hsl(0,0%,95%)]">—</span>
+              ) : (
+                <AnimatedCounter
+                  key={`m-${i}-${m.target}`}
+                  target={m.target}
+                  prefix={m.prefix}
+                  suffix={m.suffix}
+                  decimals={m.decimals}
+                  className="text-lg sm:text-2xl font-bold text-[hsl(0,0%,95%)]"
+                />
+              )}
               <p className="text-[10px] text-[hsl(0,0%,55%)]/70 mt-1 leading-snug">{m.sub}</p>
             </motion.div>
           ))}

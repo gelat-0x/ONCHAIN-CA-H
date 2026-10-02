@@ -74,7 +74,7 @@
   max-width: 100%;
 }
 
-.learn-root .learn-main {
+.learn-root:not(.learn-root--cinematic) .learn-main {
   padding-top: calc(var(--ticker-h) + var(--header-h) + 1.25rem);
   padding-bottom: var(--space-4);
 }
@@ -670,7 +670,22 @@
 .explore-hero {
   position: relative;
   z-index: 2;
-  background: hsl(0 0% 4%);
+  background: #0a0a0c;
+}
+
+.explore-hero__bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center top;
+  opacity: 0.32;
+  transform: scale(1.04);
+  transform-origin: center top;
+  filter: blur(1.5px);
 }
 
 .explore-mesh {
@@ -1779,7 +1794,7 @@
   width: min(52rem, 100%);
 }
 .fxo-modal__card--chains {
-  width: min(28rem, 100%);
+  width: min(36rem, 100%);
 }
 .fxo-modal__card--markets .fxo-markets header {
   padding-left: 2.4rem;
@@ -1963,8 +1978,67 @@
   letter-spacing: -0.01em;
 }
 .fxo-chain-btn:hover { color: white; border-color: hsl(0 0% 100% / 0.28); }
-.fxo-bychain {
+.fxo-chain-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.6rem, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
+.fxo-chain-tile {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-height: 4.4rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid hsl(0 0% 100% / 0.08);
+  background: hsl(0 0% 100% / 0.03);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fxo-chain-tile.is-on {
+  border-color: hsl(0 0% 100% / 0.28);
+  background: hsl(0 0% 100% / 0.07);
+}
+.fxo-chain-tile small {
+  color: var(--mute);
+  font-size: 11px;
+}
+.fxo-chain-tiles__hint {
+  margin: 0.7rem 0 0;
+  color: var(--mute);
+  font-size: 13px;
+}
+.fxo-bychain--one {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.fxo-bychain--one li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.45rem 0.5rem;
+  border-radius: 12px;
+  background: hsl(0 0% 100% / 0.03);
+}
+.fxo-bychain--one a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: hsl(0 0% 92%);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fxo-bychain {  display: flex;
   flex-direction: column;
   gap: 0.85rem;
   margin-top: 0.35rem;
@@ -2037,6 +2111,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.fxo-market-group ul:not(:has(li:nth-child(2))) {
+  grid-template-columns: 1fr;
 }
 .fxo-market-group li.is-open { grid-column: 1 / -1; }
 .fxo-market-group li.is-featured {

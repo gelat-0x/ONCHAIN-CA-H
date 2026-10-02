@@ -393,6 +393,46 @@ function peakWindow(
   };
 }
 
+function addressTopic(address: string): string {
+  return `0x${address.toLowerCase().replace(/^0x/, '').padStart(64, '0')}`;
+}
+
+/** Match a mint or burn to the reserve asset that moved in the same transaction. */
+async function fetchRouteTags(
+  fromBlock: number,
+  toBlock: number,
+): Promise<Map<string, { routeId: string; asset: string; type: 'mint' | 'redeem' }>> {
+  const map = new Map<string, { routeId: string; asset: string; type: 'mint' | 'redeem' }>();
+  await Promise.all(
+    FRXUSD_MINT_ROUTES.map(async (route) => {
+      const custodian = addressTopic(route.custodianAddress);
+      const [inbound, outbound] = await Promise.all([
+        ethGetLogsChunked(
+          { address: route.assetAddress, topics: [TOPIC_TRANSFER, null, custodian] },
+          fromBlock,
+          toBlock,
+          9_000,
+        ).catch(() => []),
+        ethGetLogsChunked(
+          { address: route.assetAddress, topics: [TOPIC_TRANSFER, custodian] },
+          fromBlock,
+          toBlock,
+          9_000,
+        ).catch(() => []),
+      ]);
+      for (const log of inbound) {
+        const tx = log.transactionHash.toLowerCase();
+        if (!map.has(tx)) map.set(tx, { routeId: route.id, asset: route.asset, type: 'mint' });
+      }
+      for (const log of outbound) {
+        const tx = log.transactionHash.toLowerCase();
+        if (!map.has(tx)) map.set(tx, { routeId: route.id, asset: route.asset, type: 'redeem' });
+      }
+    }),
+  );
+  return map;
+}
+
 function routeVolumes(events: RouteEvent[], now: number): FrxUsdRouteVolume[] {
   const since24h = now - MS_PER_DAY;
   const since7d = now - 7 * MS_PER_DAY;
@@ -448,8 +488,15 @@ export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemD
     || Math.round(Number(frxAsset?.circulating?.peggedUSD) || 0);
 
   const fromBlock = latestBlock ? Math.max(0, latestBlock - BLOCKS_PER_DAY * LOG_LOOKBACK_DAYS) : 0;
-  const [supplyPoints, tokenEvents] = await Promise.all([
+  const routeFrom = latestBlock ? Math.max(fromBlock, latestBlock - BLOCKS_PER_DAY * 2) : 0;
+  const [supplyPoints, routeTags, tokenEvents] = await Promise.all([
     frxId ? fetchSupplyHistoryDirect(frxId) : fetchFrxUsdSupplyHistory(frxId),
+    latestBlock
+      ? fetchRouteTags(routeFrom, latestBlock).catch((err) => {
+          console.warn('[frxUsdMintRedeem] reserve-asset tags failed:', err);
+          return new Map<string, { routeId: string; asset: string; type: 'mint' | 'redeem' }>();
+        })
+      : Promise.resolve(new Map<string, { routeId: string; asset: string; type: 'mint' | 'redeem' }>()),
     latestBlock
       ? fetchTokenMintBurn(fromBlock, latestBlock, new Map()).catch((err) => {
           console.warn('[frxUsdMintRedeem] token logs failed:', err);
@@ -457,11 +504,16 @@ export async function fetchFrxUsdMintRedeemOverview(): Promise<FrxUsdMintRedeemD
         })
       : Promise.resolve([] as RouteEvent[]),
   ]);
+  const taggedEvents = tokenEvents.map((event) => {
+    const tag = routeTags.get(event.txHash.toLowerCase());
+    if (!tag) return event;
+    return { ...event, routeId: tag.routeId, asset: tag.asset };
+  });
   const dailyFull = dailyFromSupply(supplyPoints);
   const { mintAll, redeemAll, netAll } = allTimeFromDaily(dailyFull);
   const daily = dailyFull.slice(-120);
 
-  let activityEvents = tokenEvents;
+  let activityEvents = taggedEvents;
   if (activityEvents.length || lastOnChain) {
     const since = now - 8 * MS_PER_DAY;
     const merged = new Map<string, RouteEvent>();

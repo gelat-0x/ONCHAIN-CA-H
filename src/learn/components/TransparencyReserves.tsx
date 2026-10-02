@@ -18,6 +18,7 @@ const ASSET_COLORS: Record<string, string> = {
   USDB: "#4CAF50",
   USDC: "#B0B0B0",
   EREBOR_USD: "#5C7A6B",
+  AUSD: "#7C6BB0",
   Other: "#B0B0B0",
 };
 
@@ -29,6 +30,7 @@ const ASSET_GLOW: Record<string, string> = {
   USDB: "rgba(76,175,80,0.4)",
   USDC: "rgba(176,176,176,0.3)",
   EREBOR_USD: "rgba(92,122,107,0.4)",
+  AUSD: "rgba(124,107,176,0.45)",
   Other: "rgba(176,176,176,0.3)",
 };
 
@@ -459,9 +461,11 @@ const TransparencyReserves = () => {
             ? data.assets.map((asset) => asset.ticker)
             : ["WTGXX", "USTB", "BUIDL", "USDC", "AUSD", "USDB", "EREBOR_USD"];
           const amount =
-            data.reserves > 0
+            !loading && data.reserves > 0
               ? `$${(data.reserves / 1_000_000).toFixed(1)}m backing the dollar`
-              : "Backing the dollar";
+              : loading
+                ? "Checking the balance sheet"
+                : "Backing the dollar";
           const marks = tickers
             .map((ticker) => ({ ticker, src: assetLogoSrc(ticker) }))
             .filter((item): item is { ticker: string; src: string } => Boolean(item.src));

@@ -260,7 +260,7 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
         <div>
           <div className="room__panel-head">
             <h2>Collateral routes</h2>
-            <p>Mint and redeem by asset</p>
+            <p>Each print is frxUSD. When the same transaction moves a reserve asset, that asset is named.</p>
           </div>
           <ol className="room__routes">
             {(data?.routes ?? []).map((route) => {
@@ -272,8 +272,8 @@ export default function FrxUsdDesk({ embedded = false }: { embedded?: boolean })
                   <div className="room__asset">
                     <img src={assetLogoSrc(route.asset) ?? '/learn/images/assets/frxusd.png'} alt="" />
                     <div>
-                      <strong>{route.asset}</strong>
-                      <em>{route.issuer}</em>
+                      <strong>{route.asset === 'frxUSD' ? 'frxUSD' : route.asset}</strong>
+                      <em>{route.asset === 'frxUSD' ? 'All prints' : route.issuer}</em>
                     </div>
                   </div>
                   <span className="room__split" aria-hidden="true">
